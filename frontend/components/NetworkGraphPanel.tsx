@@ -220,15 +220,23 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     () => ({
       name: layoutName,
       animate: true,
-      animationDuration: 450,
+      animationDuration: 550,
       padding: 40,
       fit: true,
       nodeDimensionsIncludeLabels: true,
       ...(layoutName === "cose"
         ? {
-            nodeRepulsion: () => 7000,
-            idealEdgeLength: () => 110,
-            edgeElasticity: () => 100,
+            nodeRepulsion: () => 650000,
+            idealEdgeLength: () => 80,
+            edgeElasticity: () => 0.45,
+            nestingFactor: 0.1,
+            gravity: 0.25,
+            tile: true,
+            tilingPaddingVertical: 40,
+            tilingPaddingHorizontal: 40,
+            numIter: 1000,
+            coolingFactor: 0.99,
+            initialTemp: 1000,
           }
         : {}),
     }),

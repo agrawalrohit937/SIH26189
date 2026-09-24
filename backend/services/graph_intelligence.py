@@ -12,37 +12,49 @@ def detect_smurfing_patterns() -> List[Dict[str, Any]]:
     and occur multiple times within a 5-day window between related or designated accounts.
     """
     cypher_query = """
-    MATCH (senderAcc:BankAccount)-[t:TRANSFERRED_TO]->(receiverAcc:BankAccount)
-    WHERE t.amount >= 49000 AND t.amount <= 49999
-    OPTIONAL MATCH (senderPerson:Person)-[:OWNS_ACCOUNT]->(senderAcc)
-    OPTIONAL MATCH (receiverPerson:Person)-[:OWNS_ACCOUNT]->(receiverAcc)
-    WITH senderPerson, senderAcc, receiverPerson, receiverAcc, t
+    MATCH (s:BankAccount)-[t:TRANSFERRED_TO]->(r:BankAccount)
+    WHERE t.amount >= 49000.0 AND t.amount <= 49999.0
+    WITH s, r, t
     ORDER BY t.date ASC
-    WITH senderPerson, senderAcc, receiverPerson, receiverAcc,
-         collect({
-             amount: t.amount,
-             date: t.date,
-             remarks: t.remarks
-         }) AS transactions,
-         collect(date(t.date)) AS txn_dates,
-         count(t) AS transaction_count,
-         sum(t.amount) AS total_evaded_amount
-    WHERE transaction_count >= 2
-    WITH senderPerson, senderAcc, receiverPerson, receiverAcc,
-         transactions, txn_dates, transaction_count, total_evaded_amount,
-         duration.between(head(txn_dates), last(txn_dates)).days AS span_days
+    WITH s, r,
+         collect(DISTINCT t) AS txns,
+         count(DISTINCT t) AS raw_count
+    WHERE raw_count >= 2
+
+    OPTIONAL MATCH (sp:Person)-[:OWNS_ACCOUNT]->(s)
+    OPTIONAL MATCH (rp:Person)-[:OWNS_ACCOUNT]->(r)
+    WITH s, r,
+         head(collect(DISTINCT sp.name)) AS sender_name,
+         head(collect(DISTINCT rp.name)) AS receiver_name,
+         [txn IN txns | {
+             amount: txn.amount,
+             date: txn.date,
+             remarks: txn.remarks
+         }] AS transactions,
+         [txn IN txns | date(txn.date)] AS txn_dates,
+         raw_count,
+         reduce(total = 0.0, txn IN txns | total + txn.amount) AS total_evaded
+
+    WITH sender_name, s.account_id AS sender_account,
+         receiver_name, r.account_id AS receiver_account,
+         raw_count AS transaction_count,
+         duration.between(head(txn_dates), last(txn_dates)).days AS span_days,
+         total_evaded AS total_evaded_amount,
+         transactions
     WHERE span_days <= 5
+
     RETURN 
-        coalesce(senderPerson.name, "Unknown") AS sender_name,
-        senderAcc.account_id AS sender_account,
-        coalesce(receiverPerson.name, "Unknown") AS receiver_name,
-        receiverAcc.account_id AS receiver_account,
+        coalesce(sender_name, "Unidentified Entity") AS sender_name,
+        sender_account,
+        coalesce(receiver_name, "Unidentified Entity") AS receiver_name,
+        receiver_account,
         transaction_count,
         span_days,
         total_evaded_amount,
         transactions,
         "HIGH - Structuring / Smurfing Threshold Evasion" AS alert_type,
-        "Multiple transactions between ₹49,000 and ₹49,999 detected within " + toString(span_days) + " days to evade PAN/AML reporting." AS alert_description
+        "Detected " + toString(transaction_count) + " transactions totaling ₹" + 
+        toString(total_evaded_amount) + " within " + toString(span_days) + " days (PMLA §12 Evasion)." AS alert_description
     ORDER BY total_evaded_amount DESC
     """
 
