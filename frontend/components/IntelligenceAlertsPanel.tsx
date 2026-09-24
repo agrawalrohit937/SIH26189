@@ -88,7 +88,7 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
   }, [refreshTrigger, fetchAlerts, onAlertsLoaded]);
 
   const handleCopyAlert = (alert: SmurfingAlertItem, index: number) => {
-    const text = `[MHA FINANCIAL FRAUD DOSSIER - CONFIDENTIAL]\nSender: ${alert.sender_name} (${alert.sender_account})\nReceiver: ${alert.receiver_name} (${alert.receiver_account})\nTotal Evaded: ₹${alert.total_evaded_amount.toLocaleString()}\nTransactions: ${alert.transaction_count} x ₹49,500 structuring\nWindow: ${alert.span_days} days\nCompliance Rule: PMLA Section 12 Violation`;
+    const text = `[MHA FINANCIAL FRAUD DOSSIER - CONFIDENTIAL]\nSender: ${alert.sender_name} (${alert.sender_account})\nReceiver: ${alert.receiver_name} (${alert.receiver_account})\nTotal Evaded: ₹${alert.total_evaded_amount.toLocaleString()}\nTransactions: ${alert.transaction_count} x ₹49,500 structuring\nWindow: ${alert.span_days} days\nAnalysis Rule: Structuring Evasion Flag [Demo Threshold: ₹49,000–₹49,999]`;
     navigator.clipboard.writeText(text);
     setCopiedId(`alert-${index}`);
     toast.success("Dossier Copied", {
@@ -131,9 +131,9 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
       <div className="mt-2.5 p-2.5 rounded-lg bg-[#080d1a] border border-slate-800/80 flex items-start gap-2">
         <AlertTriangle className="w-3.5 h-3.5 text-[#FF9933] shrink-0 mt-0.5" />
         <div className="text-[11px] text-slate-300">
-          <span className="text-[#FF9933] font-semibold">PMLA §12 Rule: </span>
+          <span className="text-[#FF9933] font-semibold">Structuring Rule: </span>
           <span className="text-slate-400">
-            Traverses transfers in range <strong className="text-slate-200">₹49,000–₹49,999</strong> evading mandatory ₹50,000 CTR reporting.
+            Traverses micro-transfers in range <strong className="text-slate-200">₹49,000–₹49,999</strong> [Demo threshold (configurable) — structuring evasion analysis].
           </span>
         </div>
       </div>

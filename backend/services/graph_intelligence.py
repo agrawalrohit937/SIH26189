@@ -53,8 +53,8 @@ def detect_smurfing_patterns() -> List[Dict[str, Any]]:
         total_evaded_amount,
         transactions,
         "HIGH - Structuring / Smurfing Threshold Evasion" AS alert_type,
-        "Detected " + toString(transaction_count) + " transactions totaling ₹" + 
-        toString(total_evaded_amount) + " within " + toString(span_days) + " days (PMLA §12 Evasion)." AS alert_description
+        "Detected " + toString(transaction_count) + " micro-transactions totaling ₹" + 
+        toString(total_evaded_amount) + " within " + toString(span_days) + " days [Demo threshold (configurable) — structuring evasion analysis]." AS alert_description
     ORDER BY total_evaded_amount DESC
     """
 

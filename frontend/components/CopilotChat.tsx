@@ -48,7 +48,7 @@ export const CopilotChat: React.FC = () => {
     {
       id: "msg-welcome",
       sender: "ai",
-      text: "MHA Crime Intelligence System Active. You can query case entities, CDR telecom records, money mule networks, or PMLA Section 12 structuring evasion.",
+      text: "MHA Crime Intelligence System Active. You can query case entities, CDR telecom records, money mule networks, or bank structuring evasion patterns.",
       timestamp: "",
     },
   ]);
