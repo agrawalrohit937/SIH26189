@@ -73,6 +73,11 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
     }
   }, [apiBaseUrl, onAlertsLoaded]);
 
+  // Initial mount: load alerts if database has data
+  useEffect(() => {
+    fetchAlerts(true);
+  }, [fetchAlerts]);
+
   // Handle parent refresh/purge triggers
   useEffect(() => {
     if (isInitialMount.current) {
@@ -86,6 +91,7 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
       if (onAlertsLoaded) onAlertsLoaded(0);
     }
   }, [refreshTrigger, fetchAlerts, onAlertsLoaded]);
+
 
   const handleCopyAlert = (alert: SmurfingAlertItem, index: number) => {
     const text = `[MHA FINANCIAL FRAUD DOSSIER - CONFIDENTIAL]\nSender: ${alert.sender_name} (${alert.sender_account})\nReceiver: ${alert.receiver_name} (${alert.receiver_account})\nTotal Evaded: ₹${alert.total_evaded_amount.toLocaleString()}\nTransactions: ${alert.transaction_count} x ₹49,500 structuring\nWindow: ${alert.span_days} days\nAnalysis Rule: Structuring Evasion Flag [Demo Threshold: ₹49,000–₹49,999]`;

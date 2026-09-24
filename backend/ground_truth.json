@@ -1,0 +1,445 @@
+{
+  "metadata": {
+    "total_persons": 19,
+    "total_relationships": 36,
+    "clusters": 3,
+    "generated_at": "2026-09-24T09:16:04.781028"
+  },
+  "nodes": {
+    "0": {
+      "name": "Jagrati Sibal",
+      "aliases": [
+        "Jagrati S.",
+        "Jagrati Sibal",
+        "J. Sibal"
+      ],
+      "phone": "9854162664",
+      "account": "9465835587",
+      "role": "Syndicate Lead",
+      "cluster": 0,
+      "cluster_name": "Cyber Hawala Core (Delhi-NCR)"
+    },
+    "1": {
+      "name": "Yahvi Kala",
+      "aliases": [
+        "Yahvi K.",
+        "Yahvi Kala",
+        "Y. Kala",
+        "YAHVI KALA"
+      ],
+      "phone": "9835942492",
+      "account": "1691775673",
+      "role": "Hawala Courier",
+      "cluster": 0,
+      "cluster_name": "Cyber Hawala Core (Delhi-NCR)"
+    },
+    "2": {
+      "name": "Bhavya Sunder",
+      "aliases": [
+        "Bhavya Sunder",
+        "B. Sunder",
+        "Bhavya S."
+      ],
+      "phone": "9882118943",
+      "account": "2574169845",
+      "role": "Financial Mule",
+      "cluster": 0,
+      "cluster_name": "Cyber Hawala Core (Delhi-NCR)"
+    },
+    "3": {
+      "name": "Falguni Sarma",
+      "aliases": [
+        "Falguni S.",
+        "Falguni Sarma",
+        "F. Sarma"
+      ],
+      "phone": "9853758773",
+      "account": "8693123862",
+      "role": "Hawala Courier",
+      "cluster": 0,
+      "cluster_name": "Cyber Hawala Core (Delhi-NCR)"
+    },
+    "4": {
+      "name": "Aadhya Hans",
+      "aliases": [
+        "Aadhya H.",
+        "Aadhya Hans",
+        "A. Hans"
+      ],
+      "phone": "9818442154",
+      "account": "7142464820",
+      "role": "Financial Mule",
+      "cluster": 0,
+      "cluster_name": "Cyber Hawala Core (Delhi-NCR)"
+    },
+    "5": {
+      "name": "Gaurang Saxena",
+      "aliases": [
+        "GAURANG SAXENA",
+        "Gaurang Saxena",
+        "Gaurang S.",
+        "G. Saxena"
+      ],
+      "phone": "9824871209",
+      "account": "6443091764",
+      "role": "Hawala Courier",
+      "cluster": 0,
+      "cluster_name": "Cyber Hawala Core (Delhi-NCR)"
+    },
+    "6": {
+      "name": "Rehaan Sodhi",
+      "aliases": [
+        "Rehaan S.",
+        "Rehaan Sodhi",
+        "R. Sodhi"
+      ],
+      "phone": "9840751628",
+      "account": "2816629581",
+      "role": "Financial Mule",
+      "cluster": 0,
+      "cluster_name": "Cyber Hawala Core (Delhi-NCR)"
+    },
+    "7": {
+      "name": "William Raval",
+      "aliases": [
+        "William R.",
+        "William Raval",
+        "W. Raval"
+      ],
+      "phone": "9825954738",
+      "account": "3738438085",
+      "role": "Syndicate Lead",
+      "cluster": 1,
+      "cluster_name": "Financial Mule Logistics (Mumbai)"
+    },
+    "8": {
+      "name": "Sathvik Bhatnagar",
+      "aliases": [
+        "S. Bhatnagar",
+        "Sathvik B.",
+        "Sathvik Bhatnagar"
+      ],
+      "phone": "9836959116",
+      "account": "1598757003",
+      "role": "Hawala Courier",
+      "cluster": 1,
+      "cluster_name": "Financial Mule Logistics (Mumbai)"
+    },
+    "9": {
+      "name": "Unni Modi",
+      "aliases": [
+        "Unni Modi",
+        "Unni M.",
+        "U. Modi"
+      ],
+      "phone": "9851867404",
+      "account": "6744761879",
+      "role": "Financial Mule",
+      "cluster": 1,
+      "cluster_name": "Financial Mule Logistics (Mumbai)"
+    },
+    "10": {
+      "name": "Indrajit Narasimhan",
+      "aliases": [
+        "I. Narasimhan",
+        "Indrajit N.",
+        "INDRAJIT NARASIMHAN",
+        "Indrajit Narasimhan"
+      ],
+      "phone": "9883623360",
+      "account": "9583748800",
+      "role": "Hawala Courier",
+      "cluster": 1,
+      "cluster_name": "Financial Mule Logistics (Mumbai)"
+    },
+    "11": {
+      "name": "Megha Raghavan",
+      "aliases": [
+        "Megha Raghavan",
+        "M. Raghavan",
+        "Megha R."
+      ],
+      "phone": "9835838954",
+      "account": "8836174703",
+      "role": "Financial Mule",
+      "cluster": 1,
+      "cluster_name": "Financial Mule Logistics (Mumbai)"
+    },
+    "12": {
+      "name": "Pallavi Bose",
+      "aliases": [
+        "P. Bose",
+        "Pallavi Bose",
+        "Pallavi B.",
+        "PALLAVI BOSE"
+      ],
+      "phone": "9830675485",
+      "account": "6368787371",
+      "role": "Hawala Courier",
+      "cluster": 1,
+      "cluster_name": "Financial Mule Logistics (Mumbai)"
+    },
+    "13": {
+      "name": "Omya Ahuja",
+      "aliases": [
+        "Omya Ahuja",
+        "O. Ahuja",
+        "Omya A."
+      ],
+      "phone": "9863794027",
+      "account": "3741744379",
+      "role": "Syndicate Lead",
+      "cluster": 2,
+      "cluster_name": "Telecom Routing Syndicate (Bengaluru)"
+    },
+    "14": {
+      "name": "Tarak Warrior",
+      "aliases": [
+        "Tarak Warrior",
+        "T. Warrior",
+        "Tarak W."
+      ],
+      "phone": "9879303793",
+      "account": "1284721345",
+      "role": "Hawala Courier",
+      "cluster": 2,
+      "cluster_name": "Telecom Routing Syndicate (Bengaluru)"
+    },
+    "15": {
+      "name": "Hemani Bains",
+      "aliases": [
+        "HEMANI BAINS",
+        "Hemani Bains",
+        "Hemani B.",
+        "H. Bains"
+      ],
+      "phone": "9826165867",
+      "account": "5921404915",
+      "role": "Financial Mule",
+      "cluster": 2,
+      "cluster_name": "Telecom Routing Syndicate (Bengaluru)"
+    },
+    "16": {
+      "name": "Jagvi Andra",
+      "aliases": [
+        "J. Andra",
+        "JAGVI ANDRA",
+        "Jagvi Andra",
+        "Jagvi A."
+      ],
+      "phone": "9813191941",
+      "account": "3856556748",
+      "role": "Hawala Courier",
+      "cluster": 2,
+      "cluster_name": "Telecom Routing Syndicate (Bengaluru)"
+    },
+    "17": {
+      "name": "Mitesh Banerjee",
+      "aliases": [
+        "M. Banerjee",
+        "Mitesh Banerjee",
+        "Mitesh B."
+      ],
+      "phone": "9858902485",
+      "account": "1897322223",
+      "role": "Financial Mule",
+      "cluster": 2,
+      "cluster_name": "Telecom Routing Syndicate (Bengaluru)"
+    },
+    "18": {
+      "name": "Pratyush Mall",
+      "aliases": [
+        "P. Mall",
+        "Pratyush Mall",
+        "Pratyush M."
+      ],
+      "phone": "9884639739",
+      "account": "6662265344",
+      "role": "Hawala Courier",
+      "cluster": 2,
+      "cluster_name": "Telecom Routing Syndicate (Bengaluru)"
+    }
+  },
+  "edges": [
+    {
+      "source": 0,
+      "target": 1,
+      "type": "both"
+    },
+    {
+      "source": 0,
+      "target": 2,
+      "type": "transfer"
+    },
+    {
+      "source": 0,
+      "target": 3,
+      "type": "call"
+    },
+    {
+      "source": 0,
+      "target": 4,
+      "type": "call"
+    },
+    {
+      "source": 0,
+      "target": 5,
+      "type": "transfer"
+    },
+    {
+      "source": 0,
+      "target": 6,
+      "type": "both"
+    },
+    {
+      "source": 0,
+      "target": 7,
+      "type": "both"
+    },
+    {
+      "source": 1,
+      "target": 4,
+      "type": "transfer"
+    },
+    {
+      "source": 1,
+      "target": 5,
+      "type": "call"
+    },
+    {
+      "source": 1,
+      "target": 6,
+      "type": "both"
+    },
+    {
+      "source": 2,
+      "target": 5,
+      "type": "call"
+    },
+    {
+      "source": 2,
+      "target": 6,
+      "type": "both"
+    },
+    {
+      "source": 3,
+      "target": 4,
+      "type": "call"
+    },
+    {
+      "source": 4,
+      "target": 5,
+      "type": "call"
+    },
+    {
+      "source": 4,
+      "target": 6,
+      "type": "both"
+    },
+    {
+      "source": 5,
+      "target": 6,
+      "type": "both"
+    },
+    {
+      "source": 5,
+      "target": 15,
+      "type": "both"
+    },
+    {
+      "source": 7,
+      "target": 8,
+      "type": "call"
+    },
+    {
+      "source": 7,
+      "target": 9,
+      "type": "transfer"
+    },
+    {
+      "source": 7,
+      "target": 10,
+      "type": "transfer"
+    },
+    {
+      "source": 8,
+      "target": 9,
+      "type": "both"
+    },
+    {
+      "source": 8,
+      "target": 10,
+      "type": "both"
+    },
+    {
+      "source": 8,
+      "target": 11,
+      "type": "both"
+    },
+    {
+      "source": 8,
+      "target": 12,
+      "type": "transfer"
+    },
+    {
+      "source": 9,
+      "target": 10,
+      "type": "transfer"
+    },
+    {
+      "source": 9,
+      "target": 11,
+      "type": "call"
+    },
+    {
+      "source": 9,
+      "target": 12,
+      "type": "both"
+    },
+    {
+      "source": 10,
+      "target": 11,
+      "type": "call"
+    },
+    {
+      "source": 10,
+      "target": 16,
+      "type": "both"
+    },
+    {
+      "source": 11,
+      "target": 12,
+      "type": "both"
+    },
+    {
+      "source": 13,
+      "target": 16,
+      "type": "transfer"
+    },
+    {
+      "source": 13,
+      "target": 17,
+      "type": "transfer"
+    },
+    {
+      "source": 14,
+      "target": 15,
+      "type": "both"
+    },
+    {
+      "source": 14,
+      "target": 18,
+      "type": "both"
+    },
+    {
+      "source": 15,
+      "target": 16,
+      "type": "both"
+    },
+    {
+      "source": 16,
+      "target": 18,
+      "type": "both"
+    }
+  ]
+}

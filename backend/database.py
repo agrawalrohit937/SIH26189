@@ -111,6 +111,9 @@ class Neo4jDatabase:
                 for k, v in node_data.items():
                     data_payload[k] = v
                 
+                # Step 2: Ensure cluster property is explicitly populated as string
+                data_payload["cluster"] = str(node_data.get("cluster", "unclustered"))
+
                 # Add sublabel
                 if node_type == "Person":
                     data_payload["sublabel"] = node_data.get("role", "Suspect")
@@ -120,6 +123,7 @@ class Neo4jDatabase:
                     data_payload["sublabel"] = node_data.get("bank_name", "Banking Entity")
 
                 nodes_dict[node_id] = {"data": data_payload}
+
 
             return node_id
 

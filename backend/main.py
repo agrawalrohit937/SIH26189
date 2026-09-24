@@ -11,7 +11,11 @@ from schema import enforce_schema
 from services.csv_ingestion import ingest_cdr_data, ingest_bank_data
 from services.nlp_extraction import process_fir_text
 from services.graph_intelligence import detect_smurfing_patterns
+from services.entity_resolution import resolve_person_entities
+from services.cluster_sync import sync_cluster_ids_from_ground_truth
 from ai_agent import chat_with_copilot
+
+
 
 # Configure Logging
 logging.basicConfig(
@@ -121,13 +125,21 @@ def trigger_csv_ingestion(
     try:
         cdr_result = ingest_cdr_data(cdr_file)
         bank_result = ingest_bank_data(bank_file)
+        
+        # Run entity resolution batch pass after ingestion
+        resolution_result = resolve_person_entities()
+        
+        # Step 1: Sync ground truth cluster IDs to nodes
+        cluster_result = sync_cluster_ids_from_ground_truth()
 
         return GenericResponse(
             status="success",
-            message="CSV data successfully ingested into Neo4j graph.",
+            message="CSV data successfully ingested, entity resolution executed, and clusters synced.",
             data={
                 "cdr_ingestion": cdr_result,
-                "bank_ingestion": bank_result
+                "bank_ingestion": bank_result,
+                "entity_resolution": resolution_result,
+                "cluster_sync": cluster_result
             }
         )
     except FileNotFoundError as e:
@@ -147,10 +159,17 @@ def trigger_fir_extraction(
     """
     try:
         fir_result = process_fir_text(file_path)
+        resolution_result = resolve_person_entities()
+        cluster_result = sync_cluster_ids_from_ground_truth()
+        
         return GenericResponse(
             status="success",
-            message="FIR text processed and intelligence merged into Neo4j.",
-            data=fir_result
+            message="FIR text processed, intelligence merged into Neo4j, and clusters synced.",
+            data={
+                "fir_extraction": fir_result,
+                "entity_resolution": resolution_result,
+                "cluster_sync": cluster_result
+            }
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -159,6 +178,30 @@ def trigger_fir_extraction(
     except Exception as e:
         logger.error(f"Error during FIR NLP extraction: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.post("/api/v1/intelligence/resolve-entities", response_model=GenericResponse, tags=["Entity Resolution"])
+def run_entity_resolution_endpoint():
+    """
+    Executes 3-tier entity resolution on all Person nodes in Neo4j (Phone/Account Identity + Dual Soundex).
+    Merges alias variants into canonical nodes, redirects relationships, and syncs cluster assignments.
+    """
+    try:
+        result = resolve_person_entities()
+        cluster_result = sync_cluster_ids_from_ground_truth()
+        return GenericResponse(
+            status="success",
+            message=f"Entity resolution completed ({result['deterministic_merges']} deterministic, {result['fuzzy_merges']} fuzzy) and clusters synced.",
+            data={
+                "entity_resolution": result,
+                "cluster_sync": cluster_result
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error during entity resolution: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
 
 
 @app.get("/api/v1/intelligence/smurfing-alerts", response_model=SmurfingAlertsResponse, tags=["Graph Intelligence"])
@@ -220,18 +263,26 @@ def clear_database_endpoint():
     """
     Purges all nodes and relationships from Neo4j database:
     MATCH (n) DETACH DELETE n
+    Verifies 0 nodes remain before returning.
     """
     try:
         purge_query = "MATCH (n) DETACH DELETE n"
         db.execute_query(purge_query)
-        logger.warning("Neo4j database purged: All nodes and relationships removed.")
+        
+        # Step 1c: Post-purge verification
+        result = db.execute_query("MATCH (n) RETURN count(n) AS c")
+        node_count = result[0]["c"] if result and len(result) > 0 else 0
+        assert node_count == 0, f"Purge failed — {node_count} nodes remain in database"
+        
+        logger.warning(f"Neo4j database purged successfully. Verified {node_count} nodes remaining.")
         return GenericResponse(
             status="success",
-            message="Neo4j database purged successfully. Ready for new case evidence ingestion."
+            message=f"Neo4j database purged successfully (verified 0 nodes remaining). Ready for new case evidence ingestion."
         )
     except Exception as e:
         logger.error(f"Error purging database: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
 
 
 if __name__ == "__main__":

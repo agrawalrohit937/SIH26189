@@ -96,14 +96,22 @@ def ingest_bank_data(file_path: str = None) -> Dict[str, Any]:
     df['amount_inr'] = pd.to_numeric(df['amount_inr'], errors='coerce').fillna(0.0).astype(float)
     df['transaction_date'] = df['transaction_date'].astype(str).str.strip()
     df['remarks'] = df['remarks'].astype(str).str.strip()
+    
+    has_sender_phone = 'sender_phone' in df.columns
+    has_receiver_phone = 'receiver_phone' in df.columns
 
     records = []
     for _, row in df.iterrows():
+        s_phone = str(row['sender_phone']).strip() if has_sender_phone and pd.notna(row['sender_phone']) else None
+        r_phone = str(row['receiver_phone']).strip() if has_receiver_phone and pd.notna(row['receiver_phone']) else None
+        
         records.append({
             "sender_name": row['sender_name'],
             "sender_account": row['sender_account'],
+            "sender_phone": s_phone,
             "receiver_name": row['receiver_name'],
             "receiver_account": row['receiver_account'],
+            "receiver_phone": r_phone,
             "amount": float(row['amount_inr']),
             "date": row['transaction_date'],
             "remarks": row['remarks']
@@ -118,12 +126,24 @@ def ingest_bank_data(file_path: str = None) -> Dict[str, Any]:
       ON CREATE SET senderAcc.account_id = row.sender_account
     MERGE (senderPerson)-[:OWNS_ACCOUNT]->(senderAcc)
 
+    // Link Sender Phone if provided
+    FOREACH (_ IN CASE WHEN row.sender_phone IS NOT NULL AND row.sender_phone <> '' THEN [1] ELSE [] END |
+      MERGE (sPhone:PhoneNumber {number: row.sender_phone})
+      MERGE (senderPerson)-[:OWNS_PHONE]->(sPhone)
+    )
+
     // Receiver Person & BankAccount
     MERGE (receiverPerson:Person {name: row.receiver_name})
       ON CREATE SET receiverPerson.name = row.receiver_name
     MERGE (receiverAcc:BankAccount {account_id: row.receiver_account})
       ON CREATE SET receiverAcc.account_id = row.receiver_account
     MERGE (receiverPerson)-[:OWNS_ACCOUNT]->(receiverAcc)
+
+    // Link Receiver Phone if provided
+    FOREACH (_ IN CASE WHEN row.receiver_phone IS NOT NULL AND row.receiver_phone <> '' THEN [1] ELSE [] END |
+      MERGE (rPhone:PhoneNumber {number: row.receiver_phone})
+      MERGE (receiverPerson)-[:OWNS_PHONE]->(rPhone)
+    )
 
     // Transaction Relationship (Idempotent MERGE based on accounts, date, amount, and remarks)
     MERGE (senderAcc)-[t:TRANSFERRED_TO {
@@ -135,6 +155,7 @@ def ingest_bank_data(file_path: str = None) -> Dict[str, Any]:
                     t.date = row.date,
                     t.remarks = row.remarks
     """
+
 
     total_records = len(records)
     for i in range(0, total_records, BATCH_SIZE):

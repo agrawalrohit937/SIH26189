@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import dynamic from "next/dynamic";
 import axios from "axios";
 import { toast } from "sonner";
 import {
-  Share2,
   RefreshCw,
   ZoomIn,
   ZoomOut,
@@ -17,25 +15,21 @@ import {
   Search,
   Info,
   Loader2,
-  Database,
   ArrowRightLeft,
   Network,
   Radio,
-  FileSpreadsheet
 } from "lucide-react";
 import cytoscape, { Core, ElementDefinition } from "cytoscape";
+import fcose from "cytoscape-fcose";
 
-const CytoscapeComponent = dynamic(() => import("react-cytoscapejs"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
-      <RefreshCw className="w-6 h-6 animate-spin text-amber-500" />
-      <span className="text-xs font-medium tracking-wide text-slate-400">
-        RENDERING CRIMINAL NETWORK TOPOLOGY...
-      </span>
-    </div>
-  ),
-});
+// Register fCoSE layout plugin safely on client
+if (typeof window !== "undefined") {
+  try {
+    cytoscape.use(fcose);
+  } catch (e) {
+    // Already registered
+  }
+}
 
 interface NetworkGraphPanelProps {
   apiBaseUrl: string;
@@ -43,41 +37,99 @@ interface NetworkGraphPanelProps {
   onRefreshLiveGraph?: () => void;
 }
 
+// Step 3: Transform raw elements into compound graph elements grouped by cluster
+function buildCompoundElements(
+  rawNodes: ElementDefinition[],
+  rawEdges: ElementDefinition[]
+): ElementDefinition[] {
+  if (!rawNodes || rawNodes.length === 0) return [];
+
+  const clusterIds = Array.from(
+    new Set(rawNodes.map((n) => String(n.data.cluster || "unclustered")))
+  );
+
+  // Parent compound containers
+  const clusterParents: ElementDefinition[] = clusterIds.map((clusterId) => ({
+    data: {
+      id: `cluster-${clusterId}`,
+      label:
+        clusterId === "unclustered"
+          ? "Unassigned Entities"
+          : `Cell ${clusterId} (Syndicate Cluster)`,
+      isClusterParent: true,
+      cluster: clusterId,
+    },
+  }));
+
+  // Child nodes assigned to parent compound containers
+  const childNodes: ElementDefinition[] = rawNodes.map((n) => ({
+    ...n,
+    data: {
+      ...n.data,
+      parent: `cluster-${String(n.data.cluster || "unclustered")}`,
+    },
+  }));
+
+  // Edges annotated with cross-cluster flag for distinct bridge styling
+  const nodeClusterMap = new Map<string, string>();
+  rawNodes.forEach((n) => {
+    if (n.data?.id) {
+      nodeClusterMap.set(String(n.data.id), String(n.data.cluster || "unclustered"));
+    }
+  });
+
+  const edgesWithCrossFlag: ElementDefinition[] = rawEdges.map((e) => {
+    const sCluster = nodeClusterMap.get(String(e.data.source));
+    const tCluster = nodeClusterMap.get(String(e.data.target));
+    const isCross = Boolean(sCluster && tCluster && sCluster !== tCluster);
+    return {
+      ...e,
+      data: {
+        ...e.data,
+        crossCluster: String(isCross),
+        isCross: isCross,
+      },
+    };
+  });
+
+  return [...clusterParents, ...childNodes, ...edgesWithCrossFlag];
+}
+
 export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
   apiBaseUrl,
   refreshTrigger = 0,
   onRefreshLiveGraph,
 }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const [elements, setElements] = useState<ElementDefinition[]>([]);
   const [isLoadingGraph, setIsLoadingGraph] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
-  const [layoutName, setLayoutName] = useState<string>("cose");
+  const [layoutName, setLayoutName] = useState<string>("fcose");
   const [filterType, setFilterType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [mounted, setMounted] = useState<boolean>(false);
   const isInitialMount = useRef(true);
 
-  // Authoritative Law Enforcement Stylesheet (Clean, Formal, No-Glow)
+  // Authoritative Law Enforcement Stylesheet (Compound Cells, Cluster Palettes & Bridge Styles)
   const cytoscapeStylesheet: any[] = useMemo(
     () => [
-      // Base Node Style
+      // Base Node Style (Non-parent nodes)
       {
-        selector: "node",
+        selector: "node:not([?isClusterParent])",
         style: {
-          label: "data(label)",
+          label: "", // hidden by default to avoid visual clutter
           color: "#f8fafc",
           "font-size": "10px",
-          "font-weight": "500",
+          "font-weight": "600",
           "font-family": "system-ui, -apple-system, sans-serif",
           "text-valign": "bottom",
           "text-halign": "center",
           "text-margin-y": 5,
           "text-background-opacity": 0.95,
-          "text-background-color": "#0f172a",
-          "text-background-padding": "2px",
+          "text-background-color": "#020617",
+          "text-background-padding": "2.5px",
           "text-background-shape": "roundrectangle",
-          "text-border-opacity": 0.9,
+          "text-border-opacity": 0.85,
           "text-border-width": 1,
           "text-border-color": "#334155",
           "border-width": 2,
@@ -85,129 +137,160 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           "background-color": "#1e293b",
         },
       },
-      // Person Node Style (Authoritative Blue #1d4ed8, shape: ellipse)
+      // Show node labels only on hover or selection
       {
-        selector: "node[type='Person']",
+        selector: "node:not([?isClusterParent]):selected, node:not([?isClusterParent]).hovered",
         style: {
-          shape: "ellipse",
-          width: 48,
-          height: 48,
-          "background-color": "#1d4ed8",
-          "border-color": "#93c5fd",
-          "border-width": 2,
+          label: "data(label)",
+          "z-index": 999,
         },
       },
-      // PhoneNumber Node Style (Emerald Green #047857, shape: round-rectangle)
+      // Selected Child Node
       {
-        selector: "node[type='PhoneNumber']",
-        style: {
-          shape: "round-rectangle",
-          width: 42,
-          height: 42,
-          "background-color": "#047857",
-          "border-color": "#6ee7b7",
-          "border-width": 2,
-        },
-      },
-      // BankAccount Node Style (Purple/Indigo #6d28d9, shape: diamond)
-      {
-        selector: "node[type='BankAccount']",
-        style: {
-          shape: "diamond",
-          width: 46,
-          height: 46,
-          "background-color": "#6d28d9",
-          "border-color": "#c4b5fd",
-          "border-width": 2,
-        },
-      },
-      // Selected Node
-      {
-        selector: "node:selected",
+        selector: "node:not([?isClusterParent]):selected",
         style: {
           "border-color": "#f59e0b",
           "border-width": 3.5,
           "background-color": "#d97706",
         },
       },
-      // Base Edge Style (Dashed gray, clean directional arrows)
+      // Step 4: Compound Cluster Parent Box Styling
+      {
+        selector: "node[?isClusterParent]",
+        style: {
+          "background-opacity": 0.07,
+          "background-color": "#3b82f6",
+          "border-width": 1.5,
+          "border-style": "dashed",
+          "border-color": "#60a5fa",
+          label: "data(label)",
+          "text-valign": "top",
+          "text-halign": "center",
+          "font-size": "11px",
+          "font-weight": "700",
+          color: "#93c5fd",
+          padding: 24,
+          "text-background-opacity": 0,
+          "border-opacity": 0.75,
+          "events": "no", // allow clicks to pass to child elements
+        },
+      },
+      // Person Node Shape (shape: ellipse)
+      {
+        selector: "node[type='Person']:not([?isClusterParent])",
+        style: {
+          shape: "ellipse",
+          width: 36,
+          height: 36,
+        },
+      },
+      // PhoneNumber Node Shape (shape: round-rectangle)
+      {
+        selector: "node[type='PhoneNumber']:not([?isClusterParent])",
+        style: {
+          shape: "round-rectangle",
+          width: 32,
+          height: 32,
+        },
+      },
+      // BankAccount Node Shape (shape: diamond)
+      {
+        selector: "node[type='BankAccount']:not([?isClusterParent])",
+        style: {
+          shape: "diamond",
+          width: 34,
+          height: 34,
+        },
+      },
+      // Step 4: Cluster Color Mapping (Palette: 0:Blue, 1:Emerald, 2:Amber, 3:Rose, 4:Purple, 5:Pink, unclustered:Gray)
+      {
+        selector: 'node[cluster = "0"]:not([?isClusterParent])',
+        style: { "background-color": "#2563eb", "border-color": "#93c5fd" },
+      },
+      {
+        selector: 'node[cluster = "1"]:not([?isClusterParent])',
+        style: { "background-color": "#059669", "border-color": "#6ee7b7" },
+      },
+      {
+        selector: 'node[cluster = "2"]:not([?isClusterParent])',
+        style: { "background-color": "#d97706", "border-color": "#fde68a" },
+      },
+      {
+        selector: 'node[cluster = "3"]:not([?isClusterParent])',
+        style: { "background-color": "#dc2626", "border-color": "#fca5a5" },
+      },
+      {
+        selector: 'node[cluster = "4"]:not([?isClusterParent])',
+        style: { "background-color": "#7c3aed", "border-color": "#c4b5fd" },
+      },
+      {
+        selector: 'node[cluster = "5"]:not([?isClusterParent])',
+        style: { "background-color": "#db2777", "border-color": "#fbcfe8" },
+      },
+      {
+        selector: 'node[cluster = "unclustered"]:not([?isClusterParent])',
+        style: { "background-color": "#4b5563", "border-color": "#9ca3af" },
+      },
+      // Base Edge Style (Clean, directional arrows)
       {
         selector: "edge",
         style: {
-          label: "data(label)",
-          "font-size": "9px",
+          label: "",
+          "font-size": "8.5px",
           "font-weight": "500",
           "font-family": "system-ui, -apple-system, sans-serif",
           color: "#cbd5e1",
-          "text-background-opacity": 0.95,
-          "text-background-color": "#0f172a",
-          "text-background-padding": "2px",
+          "text-background-opacity": 0.9,
+          "text-background-color": "#020617",
+          "text-background-padding": "1.5px",
           "text-background-shape": "roundrectangle",
-          "text-border-opacity": 0.8,
+          "text-border-opacity": 0.7,
           "text-border-width": 1,
           "text-border-color": "#334155",
           "text-rotation": "autorotate",
           "curve-style": "bezier",
           "target-arrow-shape": "triangle",
-          "arrow-scale": 1,
-          width: 1.8,
-          "line-color": "#64748b",
-          "target-arrow-color": "#64748b",
+          "arrow-scale": 0.85,
+          width: 1.5,
+          "line-color": "#475569",
+          "target-arrow-color": "#475569",
           "line-style": "dashed",
         },
       },
-      // Specific CALLED Edge Style (Steel Blue)
+      // Step 4: Cross-Cluster Bridge Edge Styling (Prominent orange dashed line)
       {
-        selector: "edge[type='CALLED']",
+        selector: 'edge[crossCluster = "true"]',
         style: {
-          "line-color": "#38bdf8",
-          "target-arrow-color": "#38bdf8",
+          "line-color": "#f97316",
+          "target-arrow-color": "#f97316",
           "line-style": "dashed",
-          width: 2,
-          color: "#bae6fd",
+          width: 2.2,
+          "z-index": 20,
+          label: "inter-cell bridge",
+          "font-size": "8px",
+          color: "#fdba74",
+          "text-rotation": "autorotate",
         },
       },
-      // Specific TRANSFERRED_TO / TRANSFERRED Edge Style (Official Red)
+      // Intra-Cluster Edge Styling (Muted)
       {
-        selector: "edge[type='TRANSFERRED_TO'], edge[type='TRANSFERRED']",
-        style: {
-          "line-color": "#e11d48",
-          "target-arrow-color": "#e11d48",
-          "line-style": "dashed",
-          width: 2.5,
-          color: "#fecdd3",
-          "font-weight": "600",
-        },
-      },
-      // Ownership Edges
-      {
-        selector: "edge[type='OWNS_PHONE'], edge[type='OWNS_ACCOUNT']",
+        selector: 'edge[crossCluster = "false"]',
         style: {
           "line-color": "#475569",
           "target-arrow-color": "#475569",
-          "line-style": "dotted",
-          width: 1.5,
-          color: "#94a3b8",
+          width: 1.2,
+          opacity: 0.65,
         },
       },
-      // Directs / Dispatches Edges
+      // Edge on hover/select shows label
       {
-        selector: "edge[type='DIRECTS'], edge[type='DISPATCHES'], edge[type='ASSOCIATED_WITH']",
+        selector: "edge:selected, edge.hovered",
         style: {
-          "line-color": "#d97706",
-          "target-arrow-color": "#d97706",
-          "line-style": "dashed",
-          width: 2,
-          color: "#fde68a",
-        },
-      },
-      // Selected Edge
-      {
-        selector: "edge:selected",
-        style: {
+          label: "data(label)",
+          "z-index": 999,
+          width: 3,
           "line-color": "#f59e0b",
           "target-arrow-color": "#f59e0b",
-          width: 3.5,
           color: "#ffffff",
         },
       },
@@ -215,122 +298,24 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     []
   );
 
-  // Layout Configuration
+  // Step 4: Compound-Aware fCoSE Layout Configuration
   const layoutConfig = useMemo(
     () => ({
-      name: layoutName,
+      name: layoutName === "fcose" || layoutName === "cose" ? "fcose" : layoutName,
+      quality: "proof",
       animate: true,
-      animationDuration: 550,
-      padding: 40,
+      animationDuration: 600,
+      padding: 35,
       fit: true,
-      nodeDimensionsIncludeLabels: true,
-      ...(layoutName === "cose"
-        ? {
-            nodeRepulsion: () => 650000,
-            idealEdgeLength: () => 80,
-            edgeElasticity: () => 0.45,
-            nestingFactor: 0.1,
-            gravity: 0.25,
-            tile: true,
-            tilingPaddingVertical: 40,
-            tilingPaddingHorizontal: 40,
-            numIter: 1000,
-            coolingFactor: 0.99,
-            initialTemp: 1000,
-          }
-        : {}),
+      nodeRepulsion: () => 6500,
+      idealEdgeLength: (edge: any) => (edge.data("isCross") ? 220 : 70),
+      nodeSeparation: 80,
+      packComponents: true,
+      nestingFactor: 0.08,
+      tile: false,
     }),
     [layoutName]
   );
-
-  // Fetch Live Graph Topology from Neo4j
-  const fetchLiveGraph = useCallback(async (isSilent = false) => {
-    setIsLoadingGraph(true);
-    try {
-      const response = await axios.get(`${apiBaseUrl}/api/v1/graph/topology`);
-      const data = response.data;
-      
-      let rawNodes: ElementDefinition[] = [];
-      let rawEdges: ElementDefinition[] = [];
-
-      if (data?.elements) {
-        if (Array.isArray(data.elements)) {
-          rawNodes = data.elements.filter((el: any) => !el.data?.source);
-          rawEdges = data.elements.filter((el: any) => el.data?.source);
-        } else {
-          rawNodes = data.elements.nodes || [];
-          rawEdges = data.elements.edges || [];
-        }
-      }
-
-      const combinedElements = [...rawNodes, ...rawEdges];
-      setElements(combinedElements);
-
-      if (cyRef.current) {
-        cyRef.current.elements().remove();
-        if (combinedElements.length > 0) {
-          cyRef.current.add(combinedElements);
-          const layout = cyRef.current.layout(layoutConfig as any);
-          layout.run();
-          cyRef.current.fit(undefined, 30);
-        }
-      }
-
-      if (!isSilent) {
-        if (combinedElements.length > 0) {
-          toast.success("Graph Synchronized", {
-            description: `Loaded ${rawNodes.length} entities & ${rawEdges.length} relationships from Neo4j.`,
-          });
-        }
-      }
-
-      if (onRefreshLiveGraph) onRefreshLiveGraph();
-    } catch (err: any) {
-      console.error("Failed to fetch live graph topology:", err);
-      if (!isSilent) {
-        toast.error("Database Query Failed", {
-          description: err.response?.data?.detail || err.message || "Failed to load graph records.",
-        });
-      }
-    } finally {
-      setIsLoadingGraph(false);
-    }
-  }, [apiBaseUrl, layoutConfig, onRefreshLiveGraph]);
-
-  // Initial Mount: DO NOT fetch automatically so demo starts clean
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // When parent triggers a refresh (e.g. after file ingestion)
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    if (refreshTrigger > 0) {
-      fetchLiveGraph(false);
-    } else if (refreshTrigger === -1) {
-      // Purge / Reset triggered
-      setElements([]);
-      if (cyRef.current) {
-        cyRef.current.elements().remove();
-      }
-      setSelectedItem(null);
-    }
-  }, [refreshTrigger, fetchLiveGraph]);
-
-  const handleZoomIn = () => {
-    if (cyRef.current) cyRef.current.zoom(cyRef.current.zoom() * 1.25);
-  };
-
-  const handleZoomOut = () => {
-    if (cyRef.current) cyRef.current.zoom(cyRef.current.zoom() * 0.8);
-  };
-
-  const handleFit = () => {
-    if (cyRef.current) cyRef.current.fit(undefined, 30);
-  };
 
   // Filter elements
   const filteredElements = useMemo(() => {
@@ -370,6 +355,227 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     return result;
   }, [elements, filterType, searchQuery]);
 
+  // Safe Graph Mutator (Processes compound nodes & executes layout)
+  const updateGraph = useCallback(
+    (newElements: ElementDefinition[]) => {
+      let cy = cyRef.current;
+      if (!containerRef.current) return;
+
+      if (!cy || cy.destroyed()) {
+        cy = cytoscape({
+          container: containerRef.current,
+          elements: [],
+          style: cytoscapeStylesheet,
+          layout: layoutConfig as any,
+        });
+        cyRef.current = cy;
+
+        cy.on("mouseover", "node:not([?isClusterParent]), edge", (evt) => {
+          evt.target.addClass("hovered");
+        });
+        cy.on("mouseout", "node:not([?isClusterParent]), edge", (evt) => {
+          evt.target.removeClass("hovered");
+        });
+
+        cy.on("tap", "node:not([?isClusterParent])", (evt) => {
+          setSelectedItem({
+            type: "node",
+            data: evt.target.data(),
+          });
+        });
+        cy.on("tap", "edge", (evt) => {
+          setSelectedItem({
+            type: "edge",
+            data: evt.target.data(),
+          });
+        });
+        cy.on("tap", (evt) => {
+          if (evt.target === cy) {
+            setSelectedItem(null);
+          }
+        });
+      }
+
+      try {
+        cy.stop();
+        cy.elements().remove();
+
+        const rawNodes = newElements.filter((el) => !el.data.source);
+        const rawEdges = newElements.filter((el) => el.data.source);
+
+        // Build Compound Hierarchy
+        const compoundElements = buildCompoundElements(rawNodes, rawEdges);
+
+        if (compoundElements.length > 0) {
+          cy.add(compoundElements);
+          cy.resize();
+          const layout = cy.layout(layoutConfig as any);
+          layout.run();
+          cy.fit(undefined, 35);
+        }
+      } catch (err) {
+        console.error("Error updating compound cytoscape graph:", err);
+      }
+    },
+    [layoutConfig, cytoscapeStylesheet]
+  );
+
+  // Initialize Cytoscape on mount
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    if (cyRef.current && !cyRef.current.destroyed()) {
+      try {
+        cyRef.current.stop();
+        cyRef.current.destroy();
+      } catch (e) {
+        // ignore
+      }
+      cyRef.current = null;
+    }
+
+    const cy = cytoscape({
+      container: containerRef.current,
+      elements: [],
+      style: cytoscapeStylesheet,
+      layout: layoutConfig as any,
+    });
+
+    cyRef.current = cy;
+
+    cy.on("mouseover", "node:not([?isClusterParent]), edge", (evt) => {
+      evt.target.addClass("hovered");
+    });
+    cy.on("mouseout", "node:not([?isClusterParent]), edge", (evt) => {
+      evt.target.removeClass("hovered");
+    });
+
+    cy.on("tap", "node:not([?isClusterParent])", (evt) => {
+      setSelectedItem({
+        type: "node",
+        data: evt.target.data(),
+      });
+    });
+    cy.on("tap", "edge", (evt) => {
+      setSelectedItem({
+        type: "edge",
+        data: evt.target.data(),
+      });
+    });
+    cy.on("tap", (evt) => {
+      if (evt.target === cy) {
+        setSelectedItem(null);
+      }
+    });
+
+    return () => {
+      if (cy && !cy.destroyed()) {
+        try {
+          cy.stop();
+          cy.destroy();
+        } catch (e) {
+          // ignore
+        }
+      }
+      cyRef.current = null;
+    };
+  }, [cytoscapeStylesheet]);
+
+  // Fetch Live Graph Topology from Neo4j
+  const fetchLiveGraph = useCallback(
+    async (isSilent = false) => {
+      setIsLoadingGraph(true);
+      try {
+        const response = await axios.get(`${apiBaseUrl}/api/v1/graph/topology`);
+        const data = response.data;
+
+        let rawNodes: ElementDefinition[] = [];
+        let rawEdges: ElementDefinition[] = [];
+
+        if (data?.elements) {
+          if (Array.isArray(data.elements)) {
+            rawNodes = data.elements.filter((el: any) => !el.data?.source);
+            rawEdges = data.elements.filter((el: any) => el.data?.source);
+          } else {
+            rawNodes = data.elements.nodes || [];
+            rawEdges = data.elements.edges || [];
+          }
+        }
+
+        const combinedElements = [...rawNodes, ...rawEdges];
+        setElements(combinedElements);
+
+        if (!isSilent) {
+          if (combinedElements.length > 0) {
+            toast.success("Graph Synchronized", {
+              description: `Loaded ${rawNodes.length} entities & ${rawEdges.length} relationships from Neo4j.`,
+            });
+          }
+        }
+
+        if (onRefreshLiveGraph) onRefreshLiveGraph();
+      } catch (err: any) {
+        console.error("Failed to fetch live graph topology:", err);
+        if (!isSilent) {
+          toast.error("Database Query Failed", {
+            description:
+              err.response?.data?.detail || err.message || "Failed to load graph records.",
+          });
+        }
+      } finally {
+        setIsLoadingGraph(false);
+      }
+    },
+    [apiBaseUrl, onRefreshLiveGraph]
+  );
+
+  // Initial Auto-Sync on Dashboard Mount
+  useEffect(() => {
+    fetchLiveGraph(true);
+  }, [fetchLiveGraph]);
+
+  // Push filtered elements whenever data or filters change
+  useEffect(() => {
+    updateGraph(filteredElements);
+  }, [filteredElements, updateGraph]);
+
+  // When parent triggers a refresh (e.g. after file ingestion)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (refreshTrigger > 0) {
+      fetchLiveGraph(false);
+    } else if (refreshTrigger === -1) {
+      // Purge / Reset triggered
+      setElements([]);
+      if (cyRef.current && !cyRef.current.destroyed()) {
+        cyRef.current.stop();
+        cyRef.current.elements().remove();
+      }
+      setSelectedItem(null);
+    }
+  }, [refreshTrigger, fetchLiveGraph]);
+
+  const handleZoomIn = () => {
+    if (cyRef.current && !cyRef.current.destroyed()) {
+      cyRef.current.zoom(cyRef.current.zoom() * 1.25);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (cyRef.current && !cyRef.current.destroyed()) {
+      cyRef.current.zoom(cyRef.current.zoom() * 0.8);
+    }
+  };
+
+  const handleFit = () => {
+    if (cyRef.current && !cyRef.current.destroyed()) {
+      cyRef.current.fit(undefined, 35);
+    }
+  };
+
   // Dynamic statistics
   const stats = useMemo(() => {
     const nodes = elements.filter((el) => !el.data.source);
@@ -382,7 +588,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-[#0c1427]/90 border border-slate-800/80 rounded-xl p-3.5 shadow-sm relative overflow-hidden font-sans">
-      {/* Top Header */}
+      {/* Top Header (Step 5: Split ambiguous entities into clean Nodes · Relationships label) */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800/80">
         <div className="flex items-center gap-2">
           <Network className="w-4 h-4 text-blue-400" />
@@ -390,7 +596,9 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
             Criminal Syndicate Network Topology
           </h2>
           <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-400">
-            {elements.length > 0 ? `${elements.length} ENTITIES` : "AWAITING INTAKE"}
+            {stats.totalNodes > 0
+              ? `${stats.totalNodes} NODES · ${stats.totalEdges} RELATIONSHIPS`
+              : "AWAITING INTAKE"}
           </span>
         </div>
 
@@ -404,7 +612,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
               onChange={(e) => setLayoutName(e.target.value)}
               className="bg-transparent text-[11px] text-slate-200 outline-none cursor-pointer"
             >
-              <option value="cose" className="bg-slate-900">Force-Directed (CoSE)</option>
+              <option value="fcose" className="bg-slate-900">Compound Force-Directed (fCoSE)</option>
               <option value="breadthfirst" className="bg-slate-900">Hierarchical Flow</option>
               <option value="concentric" className="bg-slate-900">Concentric Threat</option>
               <option value="circle" className="bg-slate-900">Circular Ring</option>
@@ -484,16 +692,26 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         </div>
       </div>
 
-      {/* Main Enterprise Canvas */}
+      {/* Main Enterprise Canvas Area */}
       <div className="relative flex-1 mt-2 rounded-lg border border-slate-800 bg-[#080d1a] overflow-hidden enterprise-grid">
-        {isLoadingGraph ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
+        {/* Permanent Cytoscape Canvas Container */}
+        <div
+          ref={containerRef}
+          className="w-full h-full absolute inset-0 z-0"
+          style={{ width: "100%", height: "100%" }}
+        />
+
+        {/* Loading Overlay */}
+        {isLoadingGraph && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#080d1a]/80 backdrop-blur-xs text-slate-400 gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
             <span className="text-xs text-slate-300 font-medium">QUERYING NEO4J GRAPH TOPOLOGY...</span>
           </div>
-        ) : elements.length === 0 ? (
-          /* Clean Empty State Placeholder on Initial Mount */
-          <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3 text-center p-6">
+        )}
+
+        {/* Empty State Overlay */}
+        {!isLoadingGraph && elements.length === 0 && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-400 gap-3 text-center p-6 bg-[#080d1a]">
             <div className="w-14 h-14 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-amber-500 shadow-inner">
               <Radio className="w-7 h-7 animate-pulse text-amber-500" />
             </div>
@@ -513,37 +731,6 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
               <span>Sync Existing Database Records</span>
             </button>
           </div>
-        ) : mounted ? (
-          <CytoscapeComponent
-            elements={filteredElements}
-            stylesheet={cytoscapeStylesheet}
-            layout={layoutConfig as any}
-            style={{ width: "100%", height: "100%" }}
-            cy={(cy: Core) => {
-              cyRef.current = cy;
-              cy.on("tap", "node", (evt) => {
-                setSelectedItem({
-                  type: "node",
-                  data: evt.target.data(),
-                });
-              });
-              cy.on("tap", "edge", (evt) => {
-                setSelectedItem({
-                  type: "edge",
-                  data: evt.target.data(),
-                });
-              });
-              cy.on("tap", (evt) => {
-                if (evt.target === cy) {
-                  setSelectedItem(null);
-                }
-              });
-            }}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-500 text-xs font-medium">
-            Initializing visualizer...
-          </div>
         )}
 
         {/* Floating Zoom & Fit Controls */}
@@ -551,21 +738,21 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           <div className="absolute top-2.5 right-2.5 flex flex-col gap-1 p-1 rounded-md bg-slate-900 border border-slate-700 shadow-md z-10">
             <button
               onClick={handleZoomIn}
-              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               title="Zoom In"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleZoomOut}
-              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               title="Zoom Out"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleFit}
-              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               title="Fit to Screen"
             >
               <Maximize2 className="w-3.5 h-3.5" />
@@ -573,21 +760,41 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           </div>
         )}
 
-        {/* Floating Formal Legend */}
+        {/* Floating Formal Legend with Cluster Color Badges */}
         {elements.length > 0 && (
-          <div className="absolute bottom-2.5 left-2.5 p-2 rounded-lg bg-slate-900/95 border border-slate-700 shadow-lg text-[10px] text-slate-300 z-10 space-y-1">
-            <div className="grid grid-cols-3 gap-x-3 gap-y-1 font-medium">
+          <div className="absolute bottom-2.5 left-2.5 p-2 rounded-lg bg-slate-900/95 border border-slate-700 shadow-lg text-[10px] text-slate-300 z-10 space-y-1.5">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-1 font-semibold text-slate-200">
+              <span>Entity Shapes:</span>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 border border-blue-400 inline-block" />
-                <span>Person</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" />
+                <span className="text-slate-400 font-normal">Person</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-600 border border-emerald-400 inline-block" />
-                <span>Phone</span>
+                <span className="w-2.5 h-2.5 rounded-sm bg-slate-400 inline-block" />
+                <span className="text-slate-400 font-normal">Phone</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rotate-45 bg-purple-600 border border-purple-400 inline-block" />
-                <span>Account</span>
+                <span className="w-2.5 h-2.5 rounded-sm bg-slate-400 inline-block rotate-45" />
+                <span className="text-slate-400 font-normal">Account</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 font-medium">
+              <span className="text-slate-400 font-semibold">Syndicate Cells:</span>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                <span>Cell 0</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                <span>Cell 1</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                <span>Cell 2</span>
+              </div>
+              <div className="flex items-center gap-1 ml-1 pl-1 border-l border-slate-800">
+                <span className="w-3 h-0.5 bg-orange-500 inline-block" />
+                <span className="text-orange-300">Inter-Cell Bridge</span>
               </div>
             </div>
           </div>
@@ -595,7 +802,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
 
         {/* Floating Entity Inspector */}
         {selectedItem && (
-          <div className="absolute top-2.5 left-2.5 max-w-[250px] w-full p-3 rounded-lg bg-slate-900 border border-slate-700 shadow-xl z-20">
+          <div className="absolute top-2.5 left-2.5 max-w-[260px] w-full p-3 rounded-lg bg-slate-900 border border-slate-700 shadow-xl z-20">
             <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
               <div className="flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-amber-400" />
@@ -605,7 +812,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
               </div>
               <button
                 onClick={() => setSelectedItem(null)}
-                className="text-slate-400 hover:text-white text-xs px-1"
+                className="text-slate-400 hover:text-white text-xs px-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -618,10 +825,30 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
                   {selectedItem.data.label || selectedItem.data.id}
                 </span>
               </div>
+              {selectedItem.data.cluster !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Syndicate Cell:</span>
+                  <span className="text-blue-400 font-bold">
+                    {selectedItem.data.cluster === "unclustered"
+                      ? "Unassigned"
+                      : `Cell ${selectedItem.data.cluster}`}
+                  </span>
+                </div>
+              )}
               {selectedItem.data.type && (
                 <div className="flex justify-between">
                   <span className="text-slate-400">Class:</span>
                   <span className="text-slate-300">{selectedItem.data.type}</span>
+                </div>
+              )}
+              {selectedItem.data.aliases && selectedItem.data.aliases.length > 0 && (
+                <div className="flex flex-col gap-0.5 pt-1 border-t border-slate-800">
+                  <span className="text-slate-400">Resolved Aliases:</span>
+                  <span className="text-amber-300 font-mono text-[10px] break-words">
+                    {Array.isArray(selectedItem.data.aliases)
+                      ? selectedItem.data.aliases.join(", ")
+                      : selectedItem.data.aliases}
+                  </span>
                 </div>
               )}
               {selectedItem.data.role && (
