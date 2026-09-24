@@ -15,7 +15,7 @@
 | **Graph Visualizer** | Cytoscape.js (`cytoscape`, `react-cytoscapejs`) | Force-directed and flow topology mapping |
 | **Backend API** | FastAPI (Python 3.14 / venv), Uvicorn | Production REST API with asynchronous endpoints |
 | **Graph Database** | Neo4j Aura Graph Database (`neo4j` Python driver) | Cypher graph store for Persons, Phones, Bank Accounts, & Edges |
-| **AI / NLP Extraction** | Groq Python Client (`groq`), Llama3-8b-8192 | Unstructured FIR text entity & relationship extraction |
+| **AI / NLP Extraction** | Groq Python Client (`groq`), `openai/gpt-oss-20b` | Unstructured FIR text entity & relationship extraction |
 | **Data Processing** | Pandas (`pandas`), Pydantic v2, Pydantic-Settings | Batch CSV parsing and UNWIND Cypher ingestion |
 
 ---
@@ -54,9 +54,9 @@
 | :--- | :---: | :---: | :---: | :--- |
 | `GET /` | `GET` | ✅ **Live** | **Real Logic** | Healthcheck returning system status and Neo4j connection string. |
 | `POST /api/v1/ingest/csv` | `POST` | ✅ **Live** | **Real Logic** | Real Pandas parsing of `CDR_Logs.csv` and `Bank_Transactions.csv`. Executes UNWIND Cypher queries creating nodes & `[:CALLED]`, `[:OWNS_ACCOUNT]`, `[:TRANSFERRED_TO]` edges in Neo4j. |
-| `POST /api/v1/ingest/fir` | `POST` | ✅ **Live** | **Real Logic** | Real Groq API client call (`llama3-8b-8192`) with strict JSON schema to extract suspects, aliases, and phone numbers from `FIR_Case_992.txt`, merging them into Neo4j. |
+| `POST /api/v1/ingest/fir` | `POST` | ✅ **Live** | **Real Logic** | Real Groq API client call (`openai/gpt-oss-20b`) with strict JSON schema to extract suspects, aliases, and phone numbers from `FIR_Case_992.txt`, merging them into Neo4j. |
 | `GET /api/v1/intelligence/smurfing-alerts` | `GET` | ✅ **Live** | **Real Logic** | Real Cypher graph traversal query detecting ₹49,000–₹49,999 transactions with velocity window calculation. |
-| `POST /api/v1/chat` | `POST` | ✅ **Live** | **Real Logic** | Law Enforcement AI Copilot endpoint powered by Groq LLM (`llama3-8b-8192`) answering tactical investigative queries. |
+| `POST /api/v1/chat` | `POST` | ✅ **Live** | **Real Logic** | Law Enforcement AI Copilot endpoint powered by Groq LLM (`openai/gpt-oss-20b`) answering tactical investigative queries. |
 | `GET /api/v1/graph/topology` | `GET` | ✅ **Live** | **Real Logic** | Exports full Neo4j graph nodes and edges strictly formatted into Cytoscape JSON (`{"elements": {"nodes": [...], "edges": [...]}}`). |
 | `DELETE /api/v1/admin/clear-db` | `DELETE` | ✅ **Live** | **Real Logic** | Purges all nodes & relationships from Neo4j (`MATCH (n) DETACH DELETE n`) to prepare the dashboard for fresh live demo presentations. |
 

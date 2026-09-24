@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def process_fir_text(file_path: str = "FIR_Case_992.txt") -> Dict[str, Any]:
     """
-    Reads FIR case text, uses Groq LLM (llama3-8b-8192) to extract structured
+    Reads FIR case text, uses Groq LLM (openai/gpt-oss-20b) to extract structured
     criminal intelligence (suspects, associates, phone numbers), and merges them into Neo4j
     with [:OWNS_PHONE] and [:ASSOCIATED_WITH] edges.
     """
@@ -52,10 +52,10 @@ Extract:
 Respond ONLY with valid JSON matching this schema. Do not include markdown ticks or commentary.
 """
 
-    logger.info(f"Extracting entities from FIR using Groq llama3-8b-8192...")
+    logger.info(f"Extracting entities from FIR using Groq openai/gpt-oss-20b...")
 
     response = client.chat.completions.create(
-        model="llama3-8b-8192",
+        model="openai/gpt-oss-20b",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Here is the FIR text:\n\n{fir_text}"}

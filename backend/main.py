@@ -142,7 +142,7 @@ def trigger_fir_extraction(
     file_path: Optional[str] = Query("FIR_Case_992.txt", description="Path to FIR text file")
 ):
     """
-    Triggers LLM intelligence extraction from FIR text via Groq (llama3-8b-8192).
+    Triggers LLM intelligence extraction from FIR text via Groq (openai/gpt-oss-20b).
     Extracts suspects, aliases, phone numbers, and links them into Neo4j with [:OWNS_PHONE] edges.
     """
     try:
@@ -201,7 +201,7 @@ def get_graph_topology_endpoint(limit: int = Query(500, description="Max entitie
 @app.post("/api/v1/chat", response_model=ChatResponse, tags=["AI Investigator Copilot"])
 def chat_copilot_endpoint(payload: ChatRequest):
     """
-    Law Enforcement AI Copilot endpoint powered by Groq LLM (llama3-8b-8192).
+    Law Enforcement AI Copilot endpoint powered by Groq LLM (openai/gpt-oss-20b).
     Answers tactical investigative queries referencing CDR logs, banking structuring, and crime syndicates.
     """
     try:

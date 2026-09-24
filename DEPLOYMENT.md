@@ -11,7 +11,7 @@ This document provides step-by-step instructions for deploying the **Ministry of
 | **Frontend UI** | Next.js 15 (App Router, Tailwind CSS v4, Cytoscape.js) | [Vercel](https://vercel.com) / Netlify / Docker |
 | **Backend API** | FastAPI, Uvicorn, Python 3.11, Groq LLM Client | [Render](https://render.com) / [Railway](https://railway.app) / Fly.io / Docker |
 | **Graph Database** | Neo4j Graph Database | [Neo4j AuraDB (Cloud Free/Enterprise)](https://neo4j.com/cloud/platform/aura-graph-database/) |
-| **AI LLM Inference** | Groq Cloud (`llama3-8b-8192`) | [Groq Console](https://console.groq.com) |
+| **AI LLM Inference** | Groq Cloud (`openai/gpt-oss-20b`) | [Groq Console](https://console.groq.com) |
 
 ---
 

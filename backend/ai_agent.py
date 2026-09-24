@@ -23,7 +23,7 @@ Provide direct, actionable intelligence briefs with tactical bullet points where
 
 def chat_with_copilot(user_message: str) -> str:
     """
-    Sends the user's investigative query to Groq (llama3-8b-8192)
+    Sends the user's investigative query to Groq (openai/gpt-oss-20b)
     and returns a concise, tactical intelligence copilot response.
     """
     settings = get_settings()
@@ -41,7 +41,7 @@ def chat_with_copilot(user_message: str) -> str:
         logger.info(f"Dispatching query to Groq LLM: {user_message[:60]}...")
 
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_message}
