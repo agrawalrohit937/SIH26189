@@ -49,13 +49,18 @@ def ingest_cdr_data(file_path: str = None) -> Dict[str, Any]:
 
     cypher_query = """
     UNWIND $batch AS row
+    // Merge caller and receiver phone nodes idempotently
     MERGE (caller:PhoneNumber {number: row.caller_number})
+      ON CREATE SET caller.number = row.caller_number
     MERGE (receiver:PhoneNumber {number: row.receiver_number})
-    CREATE (caller)-[:CALLED {
-        timestamp: row.timestamp,
-        duration: row.duration,
-        tower: row.tower
-    }]->(receiver)
+      ON CREATE SET receiver.number = row.receiver_number
+
+    // Merge CALLED relationship to prevent duplicate call edges
+    MERGE (caller)-[c:CALLED {timestamp: row.timestamp}]->(receiver)
+      ON CREATE SET c.duration = row.duration,
+                    c.tower = row.tower
+      ON MATCH SET c.duration = row.duration,
+                   c.tower = row.tower
     """
 
     total_records = len(records)
@@ -106,19 +111,29 @@ def ingest_bank_data(file_path: str = None) -> Dict[str, Any]:
 
     cypher_query = """
     UNWIND $batch AS row
+    // Sender Person & BankAccount
     MERGE (senderPerson:Person {name: row.sender_name})
+      ON CREATE SET senderPerson.name = row.sender_name
     MERGE (senderAcc:BankAccount {account_id: row.sender_account})
+      ON CREATE SET senderAcc.account_id = row.sender_account
     MERGE (senderPerson)-[:OWNS_ACCOUNT]->(senderAcc)
 
+    // Receiver Person & BankAccount
     MERGE (receiverPerson:Person {name: row.receiver_name})
+      ON CREATE SET receiverPerson.name = row.receiver_name
     MERGE (receiverAcc:BankAccount {account_id: row.receiver_account})
+      ON CREATE SET receiverAcc.account_id = row.receiver_account
     MERGE (receiverPerson)-[:OWNS_ACCOUNT]->(receiverAcc)
 
-    CREATE (senderAcc)-[:TRANSFERRED_TO {
-        amount: row.amount,
+    // Transaction Relationship (Idempotent MERGE based on accounts, date, amount, and remarks)
+    MERGE (senderAcc)-[t:TRANSFERRED_TO {
         date: row.date,
+        amount: row.amount,
         remarks: row.remarks
     }]->(receiverAcc)
+      ON CREATE SET t.amount = row.amount,
+                    t.date = row.date,
+                    t.remarks = row.remarks
     """
 
     total_records = len(records)

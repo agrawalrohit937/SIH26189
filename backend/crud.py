@@ -121,8 +121,12 @@ def delete_bank_account(account_id: str) -> bool:
 def create_call_relationship(caller: str, receiver: str, timestamp: str, duration: int, tower: str) -> Dict[str, Any]:
     query = """
     MERGE (c:PhoneNumber {number: $caller})
+      ON CREATE SET c.number = $caller
     MERGE (r:PhoneNumber {number: $receiver})
-    CREATE (c)-[rel:CALLED {timestamp: $timestamp, duration: $duration, tower: $tower}]->(r)
+      ON CREATE SET r.number = $receiver
+    MERGE (c)-[rel:CALLED {timestamp: $timestamp}]->(r)
+      ON CREATE SET rel.duration = $duration, rel.tower = $tower
+      ON MATCH SET rel.duration = $duration, rel.tower = $tower
     RETURN c.number AS caller, r.number AS receiver, rel.timestamp AS timestamp, rel.duration AS duration, rel.tower AS tower
     """
     res = db.execute_query(query, {
@@ -141,8 +145,11 @@ def create_call_relationship(caller: str, receiver: str, timestamp: str, duratio
 def create_transfer_relationship(sender_acc: str, receiver_acc: str, amount: float, date: str, remarks: str) -> Dict[str, Any]:
     query = """
     MERGE (s:BankAccount {account_id: $sender_acc})
+      ON CREATE SET s.account_id = $sender_acc
     MERGE (r:BankAccount {account_id: $receiver_acc})
-    CREATE (s)-[rel:TRANSFERRED_TO {amount: $amount, date: $date, remarks: $remarks}]->(r)
+      ON CREATE SET r.account_id = $receiver_acc
+    MERGE (s)-[rel:TRANSFERRED_TO {amount: $amount, date: $date, remarks: $remarks}]->(r)
+      ON CREATE SET rel.amount = $amount, rel.date = $date, rel.remarks = $remarks
     RETURN s.account_id AS sender, r.account_id AS receiver, rel.amount AS amount, rel.date AS date, rel.remarks AS remarks
     """
     res = db.execute_query(query, {
