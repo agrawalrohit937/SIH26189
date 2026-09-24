@@ -89,25 +89,25 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950">
-      {/* 🇮🇳 National Tricolor Accent Bar (Saffron, White, Green) */}
-      <div className="h-1 w-full tricolor-bar shrink-0" />
+    <div className="min-h-screen flex flex-col bg-[#070d18] text-slate-100 selection:bg-[#FF9933] selection:text-slate-950 font-sans">
+      {/* 🇮🇳 Prominent National Tricolor Accent Bar (Saffron, White, Green) */}
+      <div className="w-full tricolor-bar shrink-0" />
 
       {/* Official Government Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/95 backdrop-blur-md px-4 sm:px-6 py-2.5">
+      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#0c1427]/95 backdrop-blur-md px-4 sm:px-6 py-2.5">
         <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
           {/* MHA Emblem & Title */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-500 shadow-sm">
+            <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center justify-center text-[#FF9933] shadow-sm">
               <Scale className="w-5 h-5" />
             </div>
 
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold tracking-wide text-slate-100 uppercase">
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-sm font-bold tracking-wide text-white uppercase font-sans">
                   MINISTRY OF HOME AFFAIRS // CRIMINAL NETWORK ANALYSIS SYSTEM
                 </h1>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600/50 text-amber-300">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#FF9933]/15 border border-[#FF9933]/40 text-[#FF9933] tracking-wide">
                   CONFIDENTIAL // LEA ONLY
                 </span>
               </div>
@@ -115,7 +115,7 @@ export default function DashboardPage() {
                 <span className="text-slate-300 font-medium">CASE: FIR-992/2024 (Hawala &amp; Structuring Syndicate)</span>
                 <span className="text-slate-600">•</span>
                 <span className="text-emerald-400 flex items-center gap-1 font-medium">
-                  <FileCheck2 className="w-3 h-3" />
+                  <FileCheck2 className="w-3 h-3 text-emerald-400" />
                   BSA 2023 &amp; DPDPA Compliant / Official Law Enforcement Portal
                 </span>
               </p>
@@ -123,40 +123,40 @@ export default function DashboardPage() {
           </div>
 
           {/* Actions: Purge Database + Connectivity Status */}
-          <div className="flex items-center gap-3 text-xs">
-            {/* Purge / Reset Database Action Button */}
+          <div className="flex items-center gap-2.5 text-xs">
+            {/* Purge / Reset Database Action Button (Muted Secondary Utility) */}
             <button
               onClick={handlePurgeDatabase}
               disabled={isPurging}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-800 hover:bg-rose-950 border border-slate-700 hover:border-rose-800 text-slate-300 hover:text-rose-300 text-[11px] font-medium transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-900/90 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-900/60 text-slate-400 hover:text-rose-300 text-[11px] font-medium transition-all cursor-pointer disabled:opacity-50"
               title="Wipe all Neo4j nodes and reset dashboard for fresh ingestion demo"
             >
               {isPurging ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
               ) : (
-                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <Trash2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400" />
               )}
               <span>Purge Database</span>
             </button>
 
             {/* Target Badge */}
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-[11px] text-slate-300">
-              <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-slate-300">
+              <Crosshair className="w-3.5 h-3.5 text-[#FF9933]" />
               <span className="text-slate-400">Target:</span>
-              <strong className="text-slate-100">Vikram (Director)</strong>
+              <strong className="text-white">Vikram (Director)</strong>
             </div>
 
             {/* Backend Connectivity Status */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-[11px]">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-900 border border-slate-800 text-[11px]">
               {backendStatus === "online" ? (
                 <>
                   <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400 font-medium">SECURE LINK ACTIVE</span>
+                  <span className="text-emerald-400 font-medium tracking-wide">SECURE LINK ACTIVE</span>
                 </>
               ) : backendStatus === "checking" ? (
                 <>
-                  <Activity className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                  <span className="text-amber-400">CONNECTING...</span>
+                  <Activity className="w-3.5 h-3.5 text-[#FF9933] animate-spin" />
+                  <span className="text-[#FF9933]">CONNECTING...</span>
                 </>
               ) : (
                 <>

@@ -98,12 +98,12 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 border border-slate-700/80 rounded-xl p-3.5 shadow-sm relative overflow-hidden">
+    <div className="flex flex-col h-full bg-[#0c1427]/90 border border-slate-800/80 rounded-xl p-3.5 shadow-sm relative overflow-hidden font-sans">
       {/* Top Header */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/80">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-rose-500" />
-          <h2 className="text-xs font-bold tracking-wide text-slate-100 uppercase">
+          <ShieldAlert className="w-4 h-4 text-rose-400" />
+          <h2 className="text-xs font-bold tracking-wide text-white uppercase">
             Financial Intelligence Alerts
           </h2>
         </div>
@@ -111,27 +111,27 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
             alerts.length > 0
-              ? "bg-rose-950 border-rose-800 text-rose-300"
-              : "bg-slate-800 border-slate-700 text-slate-400"
+              ? "bg-rose-950/40 border-rose-800/40 text-rose-300"
+              : "bg-slate-900 border-slate-800 text-slate-400"
           }`}>
             {alerts.length} FLAGGED
           </span>
           <button
             onClick={() => fetchAlerts(false)}
             disabled={loading}
-            className="p-1 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer disabled:opacity-50"
+            className="p-1 rounded bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 transition-all cursor-pointer disabled:opacity-50"
             title="Scan Financial Trail"
           >
-            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin text-amber-500" : ""}`} />
+            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin text-blue-400" : ""}`} />
           </button>
         </div>
       </div>
 
       {/* Threshold Information HUD */}
-      <div className="mt-2.5 p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-start gap-2">
-        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+      <div className="mt-2.5 p-2.5 rounded-lg bg-[#080d1a] border border-slate-800/80 flex items-start gap-2">
+        <AlertTriangle className="w-3.5 h-3.5 text-[#FF9933] shrink-0 mt-0.5" />
         <div className="text-[11px] text-slate-300">
-          <span className="text-amber-400 font-semibold">PMLA §12 Rule: </span>
+          <span className="text-[#FF9933] font-semibold">PMLA §12 Rule: </span>
           <span className="text-slate-400">
             Traverses transfers in range <strong className="text-slate-200">₹49,000–₹49,999</strong> evading mandatory ₹50,000 CTR reporting.
           </span>

@@ -185,16 +185,16 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 border border-slate-700/80 rounded-xl p-3.5 shadow-sm relative overflow-hidden">
+    <div className="flex flex-col h-full bg-[#0c1427]/90 border border-slate-800/80 rounded-xl p-3.5 shadow-sm relative overflow-hidden font-sans">
       {/* Panel Header */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/80">
         <div className="flex items-center gap-2">
-          <FolderOpen className="w-4 h-4 text-amber-500" />
-          <h2 className="text-xs font-bold tracking-wide text-slate-100 uppercase">
+          <FolderOpen className="w-4 h-4 text-blue-400" />
+          <h2 className="text-xs font-bold tracking-wide text-white uppercase">
             Evidence Ingestion Hub
           </h2>
         </div>
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
           CCTNS // NATGRID
         </span>
       </div>
@@ -292,7 +292,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                 <button
                   onClick={handleProcessBank}
                   disabled={bankLoading}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
                   {bankLoading ? (
                     <>
@@ -302,7 +302,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                   ) : (
                     <>
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Process Financial Data</span>
+                      <span>Process Financial Records</span>
                     </>
                   )}
                 </button>
@@ -402,7 +402,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                 <button
                   onClick={handleProcessCdr}
                   disabled={cdrLoading}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
                   {cdrLoading ? (
                     <>
@@ -512,7 +512,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                 <button
                   onClick={handleProcessFir}
                   disabled={firLoading}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
                   {firLoading ? (
                     <>
