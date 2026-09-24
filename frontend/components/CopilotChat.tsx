@@ -27,10 +27,12 @@ interface ChatMessage {
 }
 
 const SAMPLE_QUESTIONS = [
-  "Summarize key suspect entities & roles",
-  "Explain detected smurfing evasion patterns",
-  "List linked bank accounts and money mules",
-  "Show high-frequency telecom call connections",
+  "Show all entities connected to Rohit Verma",
+  "What accounts are connected to this person?",
+  "Which relationships are predicted rather than verified?",
+  "Show transactions associated with ACC-1001",
+  "What evidence supports this relationship?",
+  "Show the geographic spread of this network",
 ];
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";

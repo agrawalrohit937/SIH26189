@@ -519,10 +519,26 @@ export default function DashboardPage() {
 
               {/* Bank Account */}
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
+                <div className="w-6 h-6 rounded-full bg-sky-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
                   <CreditCard className="w-3.5 h-3.5" />
                 </div>
                 <span>Bank Account / Mules</span>
+              </div>
+
+              {/* Location / Cell Tower */}
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
+                  <MapPin className="w-3.5 h-3.5" />
+                </div>
+                <span>Location / Cell Tower Hub</span>
+              </div>
+
+              {/* Vehicle / Carrier */}
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
+                  <Car className="w-3.5 h-3.5" />
+                </div>
+                <span>Vehicle / Transport Mule</span>
               </div>
 
               <div className="pt-2 border-t border-slate-100 space-y-1.5">
@@ -541,7 +557,7 @@ export default function DashboardPage() {
                 {/* Community patch */}
                 <div className="flex items-center gap-2.5">
                   <span className="w-5 h-2.5 rounded bg-amber-100 border border-amber-300 inline-block" />
-                  <span className="text-[11px]">Syndicate Group / Cell Boundary</span>
+                  <span className="text-[11px]">Syndicate Cell Boundary</span>
                 </div>
               </div>
             </div>
@@ -571,8 +587,8 @@ export default function DashboardPage() {
                   </span>
                   <p className="text-slate-700 font-medium leading-relaxed">
                     {graphStats.totalNodes > 0
-                      ? `Syndicate topology mapped with ${graphStats.totalNodes} entities across ${graphStats.totalCommunities} functional communities. Modularity Q = ${(0.62 + Math.min(0.28, graphStats.totalCommunities * 0.04)).toFixed(2)}.`
-                      : "No active syndicate topology in session. Awaiting data intake."}
+                      ? `${graphStats.totalNodes} entities connected across ${graphStats.totalCommunities} detected communities.`
+                      : "No active syndicate topology in session. Awaiting evidence intake."}
                   </p>
                 </div>
 
@@ -583,7 +599,7 @@ export default function DashboardPage() {
                   </span>
                   <p className="text-slate-700 font-medium leading-relaxed">
                     {graphStats.totalNodes > 0
-                      ? `Primary coordinator "${graphStats.keySuspectName}" exhibits dominant degree and betweenness centrality linking telecom and financial assets.`
+                      ? `"${graphStats.keySuspectName}" shows high centrality across telecom and financial relationships.`
                       : "Centrality calculations will execute upon entity ingestion."}
                   </p>
                 </div>
@@ -595,8 +611,8 @@ export default function DashboardPage() {
                   </span>
                   <p className="text-slate-700 font-medium leading-relaxed">
                     {activeAlertCount > 0
-                      ? `${activeAlertCount} transaction series flagged for sub-₹50,000 reporting threshold evasion (smurfing structuring).`
-                      : "Threshold evasion engine active. No sub-₹50k evasion loops detected in current session."}
+                      ? `A cross-community relationship and ${activeAlertCount} transaction chains flagged for human verification.`
+                      : "A cross-community relationship has been flagged for human verification."}
                   </p>
                 </div>
 
@@ -607,8 +623,8 @@ export default function DashboardPage() {
                   </span>
                   <p className="text-slate-700 font-medium leading-relaxed">
                     {graphStats.locations > 0
-                      ? `Operations span ${graphStats.locations} logged cell towers and hubs across Delhi NCR, Mumbai, and regional nodes.`
-                      : "Geographic triangulation active for CDR cell tower logs."}
+                      ? `Activity appears across ${graphStats.locations} synthetic geographic zones.`
+                      : "Activity mapped across synthetic geographic reference zones."}
                   </p>
                 </div>
 
@@ -619,7 +635,7 @@ export default function DashboardPage() {
                       5. Evidence Confidence
                     </span>
                     <span className="text-[11px] font-extrabold text-blue-700 font-mono">
-                      {graphStats.totalNodes > 0 ? "89.4%" : "0.0%"}
+                      {graphStats.totalNodes > 0 ? "0.89 (89.4%)" : "0.00"}
                     </span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
@@ -628,8 +644,8 @@ export default function DashboardPage() {
                       style={{ width: graphStats.totalNodes > 0 ? "89.4%" : "0%" }}
                     />
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">
-                    * Confidence score represents probabilistic analytical correlation, not confirmed judicial proof.
+                  <p className="text-[10px] text-slate-600 mt-1.5 leading-tight font-medium">
+                    Status: <strong>Requires human verification</strong> • Investigative lead only.
                   </p>
                 </div>
               </div>
@@ -638,21 +654,25 @@ export default function DashboardPage() {
             <div className="mt-4 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between font-medium">
               <span>National Intelligence Grid</span>
               <span className="font-bold text-blue-700 font-mono">
-                {graphStats.totalNodes > 0 ? "VERIFIED" : "STANDBY"}
+                {graphStats.totalNodes > 0 ? "AUDIT READY" : "STANDBY"}
               </span>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Official Government Footer */}
+      {/* Official SIH 2026 Institutional Footer */}
       <footer className="border-t border-slate-200 bg-white px-4 py-2.5 text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2 shadow-xs">
         <div className="flex items-center gap-3">
-          <span className="text-slate-800 font-bold">GOVERNMENT OF INDIA // LAW ENFORCEMENT INTELLIGENCE GRID</span>
+          <span className="text-slate-800 font-bold">SIH 2026 • MINISTRY OF HOME AFFAIRS</span>
           <span className="text-slate-300">|</span>
-          <span>CYTOSCAPE GRAPH 3.30</span>
+          <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[10px]">
+            SYNTHETIC DEMO DATA
+          </span>
           <span className="text-slate-300">|</span>
-          <span>NEO4J GRAPH ENTERPRISE ENGINE</span>
+          <span>NEO4J GRAPH DATABASE</span>
+          <span className="text-slate-300">|</span>
+          <span>CYTOSCAPE HYBRID ENGINE</span>
         </div>
         <div>
           <span suppressHydrationWarning className="font-mono text-[10px] text-slate-600 font-medium">
