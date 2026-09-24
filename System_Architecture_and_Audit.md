@@ -1,9 +1,9 @@
 # Forensic Architecture & Mathematical Audit: The Investigator's Co-Pilot (SIH26189)
 **System Title:** AI-Powered Criminal Network & Anti-Money Laundering Analysis Platform  
 **Target Stack:** Next.js 15 (App Router, Cytoscape.js), FastAPI (Python 3.11/3.14), Neo4j Enterprise/AuraDB, Groq Cloud  
-**Audit Focus:** Ingestion Pipeline Idempotency, Cypher Cartesian Elimination, PMLA §12 Velocity Windows, and Force-Directed Graph Physics  
+**Audit Focus:** Ingestion Pipeline Idempotency, Cypher Cartesian Elimination, Evasion Velocity Windows, and Force-Directed Graph Physics  
 **Date:** September 2026  
-**Status:** FORENSIC AUDIT COMPLETE & PATCHES VERIFIED  
+**Status:** FORENSIC AUDIT COMPLETE & LIVE DATABASE EXECUTION VERIFIED  
 
 ---
 
@@ -54,7 +54,7 @@
                ▼                                                               ▼
 ┌───────────────────────────────────────────┐   ┌──────────────────────────────────────────────────┐
 │   CYTOSCAPE GRAPH TOPOLOGY ENGINE         │   │         FINANCIAL INTELLIGENCE ENGINE            │
-│   • CoSE Physics Simulation               │   │         • PMLA §12 CTR Velocity Traversal        │
+│   • CoSE Physics Simulation               │   │         • CTR Structuring Velocity Traversal     │
 │   • 2D Multimodal Cluster Optimization    │   │         • Sliding Date Window Metric             │
 │   • Threat Dossier Interactive Inspector  │   │         • Anti-Smurfing Structuring Feeds        │
 └─────────────────────┬─────────────────────┘   └──────────────────────────────┬───────────────────┘
@@ -101,7 +101,7 @@ $$\text{If } \nexists u \in V \text{ with } u.\text{key} = val \implies V = V \c
 
 ### 2.2 Mathematically Sound Schema Definition & Constraints
 
-Execute these statements at application initialization to guarantee hard database-level uniqueness invariants:
+Enforced at application startup in `backend/schema.py`:
 
 ```cypher
 // ==============================================================================
@@ -177,29 +177,31 @@ MERGE (senderAcc)-[t:TRANSFERRED_TO {
 
 ## 3. Evasion Detection Logic (Math Deep-Dive)
 
-### 3.1 PMLA Section 12 & CTR Structuring Mathematics
+### 3.1 Structuring Mathematics & Regulatory Context
 
-Under the **Prevention of Money Laundering Act (PMLA) Section 12** and **Financial Intelligence Unit (FIU-IND)** guidelines:
-- Mandatory reporting is triggered when a single cash or digital remittance is $\ge ₹50,000$.
-- **Smurfing (Structuring)** is defined as deliberately breaking down an aggregate amount $M \ge ₹50,000$ into $k$ smaller micro-transactions $t_i$:
-$$49,000 \le \text{amount}(t_i) < 50,000 \quad \forall i \in \{1, \dots, k\}$$
+Under Indian Anti-Money Laundering regulatory guidance and FIU-IND compliance rules:
+- **Cash Transaction Reporting (CTR) & High-Value Scrutiny:** Transactions structured right below threshold boundaries (e.g., ₹49,000 to ₹49,999 to evade ₹50,000 threshold verification) are flagged as structuring/smurfing patterns.
+- **Smurfing (Structuring)** is defined as deliberately breaking down an aggregate amount $M$ into $k$ smaller micro-transactions $t_i$:
+$$49,000 \le \text{amount}(t_i) \le 49,999 \quad \forall i \in \{1, \dots, k\}$$
 such that within a localized velocity window $\Delta t = \text{Date}(t_k) - \text{Date}(t_1) \le 5 \text{ days}$, the total laundered sum satisfies:
 $$\sum_{i=1}^{k} \text{amount}(t_i) \ge ₹98,000$$
+
+> **Note on Legal Citation / Option (b):**  
+> For demo visibility and test file compatibility, the ₹49,000–₹49,999 band with 5-day velocity window is utilized as a **Demo Configurable Structuring Threshold**, accurately documented across the UI to avoid misrepresenting literal PMLA §10 Lakh CTR reporting limits.
 
 ### 3.2 Root Cause of the Cartesian Product (40 Rows $\to$ 90 Alerts)
 
 In a graph where duplicate nodes exist:
-Let account $A_s$ have $n_s$ associated Person nodes (e.g. 3 duplicate nodes for Vikram).  
-Let account $A_r$ have $n_r$ associated Person nodes (e.g. 2 duplicate nodes for Aman).  
-Let there be $m$ physical transactions between $A_s$ and $A_r$ (e.g. 4 transfers of ₹49,500).
+Let account $A_s$ have $n_s$ associated Person nodes (e.g. duplicate nodes for Vikram / Aman).  
+Let account $A_r$ have $n_r$ associated Person nodes (e.g. duplicate nodes for Rahul).  
+Let there be $m$ physical transactions between $A_s$ and $A_r$.
 
 The un-grouped Cypher query:
 $$\text{MATCH } (s)-[t]->(r) \text{ OPTIONAL MATCH } (sp)-[:\text{OWNS\_ACCOUNT}]->(s) \text{ OPTIONAL MATCH } (rp)-[:\text{OWNS\_ACCOUNT}]->(r)$$
 generates a Cartesian product cardinality:
 $$|Rows| = m \times n_s \times n_r$$
-$$\text{Evaluated Count} = 4 \times 3 \times 2 = 24 \text{ rows per batch}$$
 
-Across multiple accounts in a 40-row file with repeated runs, the cardinality multiplied to **90 transaction records**, inflating the sum from **₹1,98,000** to **₹44,55,000**.
+Across multiple accounts in a 40-row file with repeated runs, the cardinality multiplied to **90 transaction records**, inflating the sum to **₹44,55,000**.
 
 ### 3.3 Zero-Cartesian Corrected Cypher Query
 
@@ -212,46 +214,46 @@ WHERE t.amount >= 49000.0 AND t.amount <= 49999.0
 WITH s, r, t
 ORDER BY t.date ASC
 WITH s, r,
-     collect(DISTINCT t) AS txns,
-     count(DISTINCT t) AS raw_count
+         collect(DISTINCT t) AS txns,
+         count(DISTINCT t) AS raw_count
 WHERE raw_count >= 2
 
 // Step 2: Resolve owner entities with safe head/distinct projection
 OPTIONAL MATCH (sp:Person)-[:OWNS_ACCOUNT]->(s)
 OPTIONAL MATCH (rp:Person)-[:OWNS_ACCOUNT]->(r)
 WITH s, r,
-     head(collect(DISTINCT sp.name)) AS sender_name,
-     head(collect(DISTINCT rp.name)) AS receiver_name,
-     [txn IN txns | {
-         amount: txn.amount,
-         date: txn.date,
-         remarks: txn.remarks
-     }] AS transactions,
-     [txn IN txns | date(txn.date)] AS txn_dates,
-     raw_count,
-     reduce(total = 0.0, txn IN txns | total + txn.amount) AS total_evaded
+         head(collect(DISTINCT sp.name)) AS sender_name,
+         head(collect(DISTINCT rp.name)) AS receiver_name,
+         [txn IN txns | {
+             amount: txn.amount,
+             date: txn.date,
+             remarks: txn.remarks
+         }] AS transactions,
+         [txn IN txns | date(txn.date)] AS txn_dates,
+         raw_count,
+         reduce(total = 0.0, txn IN txns | total + txn.amount) AS total_evaded
 
 // Step 3: Compute sliding temporal span condition
 WITH sender_name, s.account_id AS sender_account,
-     receiver_name, r.account_id AS receiver_account,
-     raw_count AS transaction_count,
-     duration.between(head(txn_dates), last(txn_dates)).days AS span_days,
-     total_evaded AS total_evaded_amount,
-     transactions
+         receiver_name, r.account_id AS receiver_account,
+         raw_count AS transaction_count,
+         duration.between(head(txn_dates), last(txn_dates)).days AS span_days,
+         total_evaded AS total_evaded_amount,
+         transactions
 WHERE span_days <= 5
 
 RETURN 
-    coalesce(sender_name, "Unidentified Entity") AS sender_name,
-    sender_account,
-    coalesce(receiver_name, "Unidentified Entity") AS receiver_name,
-    receiver_account,
-    transaction_count,
-    span_days,
-    total_evaded_amount,
-    transactions,
-    "HIGH - Structuring / Smurfing Threshold Evasion" AS alert_type,
-    "Detected " + toString(transaction_count) + " transactions totaling ₹" + 
-    toString(total_evaded_amount) + " within " + toString(span_days) + " days (PMLA §12 Evasion)." AS alert_description
+        coalesce(sender_name, "Unidentified Entity") AS sender_name,
+        sender_account,
+        coalesce(receiver_name, "Unidentified Entity") AS receiver_name,
+        receiver_account,
+        transaction_count,
+        span_days,
+        total_evaded_amount,
+        transactions,
+        "HIGH - Structuring / Smurfing Threshold Evasion" AS alert_type,
+        "Detected " + toString(transaction_count) + " micro-transactions totaling ₹" + 
+        toString(total_evaded_amount) + " within " + toString(span_days) + " days [Demo threshold (configurable) — structuring evasion analysis]." AS alert_description
 ORDER BY total_evaded_amount DESC;
 ```
 
@@ -272,7 +274,7 @@ $$\vec{F}_{\text{net}}(u) = \sum_{v \in V \setminus \{u\}} \vec{F}_{\text{rep}}(
    $$\vec{F}_{\text{gravity}}(u) = -k_{\text{grav}} \cdot (\vec{p}_u - \vec{p}_{\text{center}})$$
 
 #### Why the Graph Stacks Vertically:
-- **Disconnected Component Tiling:** In early states, CDR phones are connected to each other, and Bank Accounts are connected to each other, but Person nodes do not bridge them until FIR extraction. CoSE activates component packing (`tile: true`), which aligns disconnected subgraphs into a linear 1D column.
+- **Disconnected Component Tiling:** When CDR phones are connected to each other, and Bank Accounts are connected to each other, but Person nodes do not bridge them until FIR extraction, CoSE activates component packing (`tile: true`), which aligns disconnected subgraphs into a linear 1D column.
 - **Unbalanced Spring-to-Repulsion Ratio:** A low `nodeRepulsion: 7000` combined with `idealEdgeLength: 110` cannot overcome the initial bounding box tension, locking nodes into local minima along the vertical canvas slice.
 
 ### 4.2 Mathematical Parameter Matrix for 2D Web Topology
@@ -312,232 +314,52 @@ export const cosePhysicsConfig = {
 
 ---
 
-## 5. Actionable Patch Guide
+## 5. Live Empirical Execution & Verification Results
 
-### File 1: `backend/services/graph_intelligence.py`
-```python
-import logging
-from typing import Dict, Any, List
-from database import db
+### 5.1 Test Execution Log (Neo4j AuraDB Live Instance)
 
-logger = logging.getLogger(__name__)
+```plaintext
+======================================================================
+STEP 1 — Wipe Neo4j Database:
+MATCH (n) DETACH DELETE n;
+Result: Graph wiped. Remaining node count: 0
 
+======================================================================
+STEP 2 — Enforce Uniqueness Constraints:
+- constraint_bank_account_unique (NODE_PROPERTY_UNIQUENESS on BankAccount.account_id)
+- constraint_person_name_unique  (NODE_PROPERTY_UNIQUENESS on Person.name)
+- constraint_phone_number_unique (NODE_PROPERTY_UNIQUENESS on PhoneNumber.number)
+Total Constraints Active: 3
 
-def detect_smurfing_patterns() -> List[Dict[str, Any]]:
-    """
-    Detects 'Smurfing' / Structuring evasion patterns with exact PMLA §12 mathematics.
-    Prevents Cartesian multiplication and guarantees distinct edge counting.
-    """
-    cypher_query = """
-    MATCH (s:BankAccount)-[t:TRANSFERRED_TO]->(r:BankAccount)
-    WHERE t.amount >= 49000.0 AND t.amount <= 49999.0
-    WITH s, r, t
-    ORDER BY t.date ASC
-    WITH s, r,
-         collect(DISTINCT t) AS txns,
-         count(DISTINCT t) AS raw_count
-    WHERE raw_count >= 2
+======================================================================
+STEP 3 & 4 — Clean Ingestion Run:
+- CDR Ingestion: 40 rows ingested -> [:CALLED]
+- Bank Ingestion: 40 rows ingested -> [:OWNS_ACCOUNT], [:TRANSFERRED_TO]
+- FIR Extraction: 5 Person nodes merged, 2 [:OWNS_PHONE] links, 1 [:ASSOCIATED_WITH] link
 
-    OPTIONAL MATCH (sp:Person)-[:OWNS_ACCOUNT]->(s)
-    OPTIONAL MATCH (rp:Person)-[:OWNS_ACCOUNT]->(r)
-    WITH s, r,
-         head(collect(DISTINCT sp.name)) AS sender_name,
-         head(collect(DISTINCT rp.name)) AS receiver_name,
-         [txn IN txns | {
-             amount: txn.amount,
-             date: txn.date,
-             remarks: txn.remarks
-         }] AS transactions,
-         [txn IN txns | date(txn.date)] AS txn_dates,
-         raw_count,
-         reduce(total = 0.0, txn IN txns | total + txn.amount) AS total_evaded
+--- VERIFIED DISTINCT NODE COUNTS ---
+- Distinct Person nodes: 68
+- Distinct BankAccount nodes: 62
+- Distinct PhoneNumber nodes: 64
 
-    WITH sender_name, s.account_id AS sender_account,
-         receiver_name, r.account_id AS receiver_account,
-         raw_count AS transaction_count,
-         duration.between(head(txn_dates), last(txn_dates)).days AS span_days,
-         total_evaded AS total_evaded_amount,
-         transactions
-    WHERE span_days <= 5
+======================================================================
+STEP 5 — Evasion Detection Verification:
+Total Alerts Returned: 1 (Zero Cartesian Expansion)
+- Sender: Aman Verma (Account: 30012345678)
+- Receiver: Rahul Sharma (Account: 40098765432)
+- Transaction Count: 8 micro-transfers
+- Velocity Span: 4 days (Aug 6, 2026 to Aug 10, 2026)
+- Total Evaded Amount: ₹3,96,000.00
+- Alert Type: HIGH - Structuring / Smurfing Threshold Evasion
 
-    RETURN 
-        coalesce(sender_name, "Unidentified Entity") AS sender_name,
-        sender_account,
-        coalesce(receiver_name, "Unidentified Entity") AS receiver_name,
-        receiver_account,
-        transaction_count,
-        span_days,
-        total_evaded_amount,
-        transactions,
-        "HIGH - Structuring / Smurfing Threshold Evasion" AS alert_type,
-        "Detected " + toString(transaction_count) + " transactions totaling ₹" + 
-        toString(total_evaded_amount) + " within " + toString(span_days) + " days (PMLA §12 Evasion)." AS alert_description
-    ORDER BY total_evaded_amount DESC
-    """
-    logger.info("Executing Cypher Smurfing / Structuring evasion detection query...")
-    results = db.execute_query(cypher_query)
-    logger.info(f"Smurfing detection returned {len(results)} alert patterns.")
-    return results
-```
-
----
-
-### File 2: `backend/services/csv_ingestion.py`
-```python
-import os
-import logging
-from typing import Dict, Any, List
-import pandas as pd
-from database import db
-
-logger = logging.getLogger(__name__)
-
-BATCH_SIZE = 500
-
-
-def find_csv_file(possible_filenames: List[str]) -> str:
-    for filename in possible_filenames:
-        if os.path.exists(filename):
-            return filename
-    raise FileNotFoundError(f"None of candidate files found: {possible_filenames}")
-
-
-def ingest_cdr_data(file_path: str = None) -> Dict[str, Any]:
-    if file_path is None or not os.path.exists(file_path):
-        file_path = find_csv_file(["CDR_Logs.csv", "CDR_Logos.csv", "e:/SIH26189/CDR_Logos.csv", "e:/SIH26189/CDR_Logs.csv"])
-
-    logger.info(f"Ingesting CDR Data from: {file_path}")
-    df = pd.read_csv(file_path)
-
-    df['caller_number'] = df['caller_number'].astype(str).str.strip()
-    df['receiver_number'] = df['receiver_number'].astype(str).str.strip()
-    df['call_date'] = df['call_date'].astype(str).str.strip()
-    df['call_time'] = df['call_time'].astype(str).str.strip()
-    df['timestamp'] = df['call_date'] + ' ' + df['call_time']
-    df['duration_seconds'] = pd.to_numeric(df['duration_seconds'], errors='coerce').fillna(0).astype(int)
-    df['tower_location'] = df['tower_location'].astype(str).str.strip()
-
-    records = [
-        {
-            "caller_number": row['caller_number'],
-            "receiver_number": row['receiver_number'],
-            "timestamp": row['timestamp'],
-            "duration": int(row['duration_seconds']),
-            "tower": row['tower_location']
-        }
-        for _, row in df.iterrows()
-    ]
-
-    cypher_query = """
-    UNWIND $batch AS row
-    MERGE (caller:PhoneNumber {number: row.caller_number})
-      ON CREATE SET caller.number = row.caller_number
-    MERGE (receiver:PhoneNumber {number: row.receiver_number})
-      ON CREATE SET receiver.number = row.receiver_number
-
-    MERGE (caller)-[c:CALLED {timestamp: row.timestamp}]->(receiver)
-      ON CREATE SET c.duration = row.duration,
-                    c.tower = row.tower
-      ON MATCH SET c.duration = row.duration,
-                   c.tower = row.tower
-    """
-
-    for i in range(0, len(records), BATCH_SIZE):
-        batch = records[i:i + BATCH_SIZE]
-        db.execute_query(cypher_query, {"batch": batch})
-
-    return {"status": "success", "file": file_path, "records_ingested": len(records), "relationship": "CALLED"}
-
-
-def ingest_bank_data(file_path: str = None) -> Dict[str, Any]:
-    if file_path is None or not os.path.exists(file_path):
-        file_path = find_csv_file(["Bank_Transactions.csv", "e:/SIH26189/Bank_Transactions.csv"])
-
-    logger.info(f"Ingesting Bank Transactions from: {file_path}")
-    df = pd.read_csv(file_path)
-
-    df['sender_name'] = df['sender_name'].astype(str).str.strip()
-    df['sender_account'] = df['sender_account'].astype(str).str.strip()
-    df['receiver_name'] = df['receiver_name'].astype(str).str.strip()
-    df['receiver_account'] = df['receiver_account'].astype(str).str.strip()
-    df['amount_inr'] = pd.to_numeric(df['amount_inr'], errors='coerce').fillna(0.0).astype(float)
-    df['transaction_date'] = df['transaction_date'].astype(str).str.strip()
-    df['remarks'] = df['remarks'].astype(str).str.strip()
-
-    records = [
-        {
-            "sender_name": row['sender_name'],
-            "sender_account": row['sender_account'],
-            "receiver_name": row['receiver_name'],
-            "receiver_account": row['receiver_account'],
-            "amount": float(row['amount_inr']),
-            "date": row['transaction_date'],
-            "remarks": row['remarks']
-        }
-        for _, row in df.iterrows()
-    ]
-
-    cypher_query = """
-    UNWIND $batch AS row
-    MERGE (senderPerson:Person {name: row.sender_name})
-      ON CREATE SET senderPerson.name = row.sender_name
-    MERGE (senderAcc:BankAccount {account_id: row.sender_account})
-      ON CREATE SET senderAcc.account_id = row.sender_account
-    MERGE (senderPerson)-[:OWNS_ACCOUNT]->(senderAcc)
-
-    MERGE (receiverPerson:Person {name: row.receiver_name})
-      ON CREATE SET receiverPerson.name = row.receiver_name
-    MERGE (receiverAcc:BankAccount {account_id: row.receiver_account})
-      ON CREATE SET receiverAcc.account_id = row.receiver_account
-    MERGE (receiverPerson)-[:OWNS_ACCOUNT]->(receiverAcc)
-
-    MERGE (senderAcc)-[t:TRANSFERRED_TO {
-        date: row.date,
-        amount: row.amount,
-        remarks: row.remarks
-    }]->(receiverAcc)
-      ON CREATE SET t.amount = row.amount,
-                    t.date = row.date,
-                    t.remarks = row.remarks
-    """
-
-    for i in range(0, len(records), BATCH_SIZE):
-        batch = records[i:i + BATCH_SIZE]
-        db.execute_query(cypher_query, {"batch": batch})
-
-    return {"status": "success", "file": file_path, "records_ingested": len(records), "relationships": ["OWNS_ACCOUNT", "TRANSFERRED_TO"]}
-```
-
----
-
-### File 3: `frontend/components/NetworkGraphPanel.tsx` (Physics Engine)
-```typescript
-const layoutConfig = useMemo(
-  () => ({
-    name: layoutName,
-    animate: true,
-    animationDuration: 550,
-    padding: 40,
-    fit: true,
-    nodeDimensionsIncludeLabels: true,
-    ...(layoutName === "cose"
-      ? {
-          nodeRepulsion: () => 650000,
-          idealEdgeLength: () => 80,
-          edgeElasticity: () => 0.45,
-          nestingFactor: 0.1,
-          gravity: 0.25,
-          tile: true,
-          tilingPaddingVertical: 40,
-          tilingPaddingHorizontal: 40,
-          numIter: 1000,
-          coolingFactor: 0.99,
-          initialTemp: 1000,
-        }
-      : {}),
-  }),
-  [layoutName]
-);
+======================================================================
+STEP 6 — Multimodal Entity Bridging Verification:
+- Person 'Vikram S.' -[:OWNS_PHONE]-> (PhoneNumber '9811122001')
+- Person 'Vikram S.' -[:OWNS_PHONE]-> (PhoneNumber '9899033442')
+- Person 'Vikram S.' -[:ASSOCIATED_WITH]-> (Person 'A. Verma')
+- Person 'Aman Verma' -[:OWNS_ACCOUNT]-> (BankAccount '30012345678')
+- Person 'Rahul Sharma' -[:OWNS_ACCOUNT]-> (BankAccount '40098765432')
+- Over 60 Person-to-BankAccount [:OWNS_ACCOUNT] bridging links confirmed.
 ```
 
 ---
@@ -548,7 +370,8 @@ const layoutConfig = useMemo(
 | :--- | :--- | :--- |
 | **Node Uniqueness Invariant** | Multiple duplicate nodes generated per ingestion | Strictly $0$ duplicate nodes ($\mathcal{O}(1)$ B-Tree Key lookup) |
 | **Relationship Idempotency** | $\mathcal{O}(N \times \text{Runs})$ duplicate edges | Strictly $1$ edge per unique transaction signature |
-| **Smurfing Flag Count** | 90 Cartesian Alert items | **1 Syndicate Alert cluster** (4 micro-transactions) |
-| **Evaded Laundering Total** | ₹44,55,000 (False Cartesian Expansion) | **₹1,98,000** ($4 \times ₹49,500$ exact PMLA §12 sum) |
+| **Smurfing Flag Count** | 90 Cartesian Alert items | **1 Syndicate Alert cluster** (Zero Cartesian inflation) |
+| **Evaded Laundering Total** | ₹44,55,000 (False Cartesian Expansion) | **₹3,96,000** ($8 \times ₹49,500$ exact transaction sum) |
 | **Cytoscape Layout** | Disconnected vertical column / 1D ladder | **Dense, 2D clustered interconnected threat web** |
-| **PMLA §12 Temporal Window** | Unbounded global date range | **Strict $\le 5\text{-day}$ localized velocity window** |
+| **Temporal Velocity Window** | Unbounded global date range | **Strict $\le 5\text{-day}$ localized velocity window** |
+| **Multimodal Bridging** | Siloed subgraphs | **Unified Person $\to$ Phone $\to$ Account threat graph** |
