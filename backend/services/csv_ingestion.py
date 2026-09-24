@@ -1,0 +1,135 @@
+import os
+import logging
+from typing import Dict, Any, List
+import pandas as pd
+from database import db
+
+logger = logging.getLogger(__name__)
+
+BATCH_SIZE = 500
+
+
+def find_csv_file(possible_filenames: List[str]) -> str:
+    """Finds the first existing file from a list of candidates."""
+    for filename in possible_filenames:
+        if os.path.exists(filename):
+            return filename
+    raise FileNotFoundError(f"None of the candidate files found: {possible_filenames}")
+
+
+def ingest_cdr_data(file_path: str = None) -> Dict[str, Any]:
+    """
+    Reads CDR logs CSV, batches records, and executes UNWIND Cypher queries
+    to create PhoneNumber nodes and [:CALLED] relationship edges.
+    """
+    if file_path is None or not os.path.exists(file_path):
+        file_path = find_csv_file(["CDR_Logs.csv", "CDR_Logos.csv", "e:/SIH26189/CDR_Logos.csv", "e:/SIH26189/CDR_Logs.csv"])
+
+    logger.info(f"Ingesting CDR Data from: {file_path}")
+    df = pd.read_csv(file_path)
+
+    # Clean and standardize columns
+    df['caller_number'] = df['caller_number'].astype(str).str.strip()
+    df['receiver_number'] = df['receiver_number'].astype(str).str.strip()
+    df['call_date'] = df['call_date'].astype(str).str.strip()
+    df['call_time'] = df['call_time'].astype(str).str.strip()
+    df['timestamp'] = df['call_date'] + ' ' + df['call_time']
+    df['duration_seconds'] = pd.to_numeric(df['duration_seconds'], errors='coerce').fillna(0).astype(int)
+    df['tower_location'] = df['tower_location'].astype(str).str.strip()
+
+    records = []
+    for _, row in df.iterrows():
+        records.append({
+            "caller_number": row['caller_number'],
+            "receiver_number": row['receiver_number'],
+            "timestamp": row['timestamp'],
+            "duration": int(row['duration_seconds']),
+            "tower": row['tower_location']
+        })
+
+    cypher_query = """
+    UNWIND $batch AS row
+    MERGE (caller:PhoneNumber {number: row.caller_number})
+    MERGE (receiver:PhoneNumber {number: row.receiver_number})
+    CREATE (caller)-[:CALLED {
+        timestamp: row.timestamp,
+        duration: row.duration,
+        tower: row.tower
+    }]->(receiver)
+    """
+
+    total_records = len(records)
+    for i in range(0, total_records, BATCH_SIZE):
+        batch = records[i:i + BATCH_SIZE]
+        db.execute_query(cypher_query, {"batch": batch})
+
+    logger.info(f"Successfully ingested {total_records} CDR records into Neo4j.")
+    return {
+        "status": "success",
+        "file": file_path,
+        "records_ingested": total_records,
+        "relationship": "CALLED"
+    }
+
+
+def ingest_bank_data(file_path: str = None) -> Dict[str, Any]:
+    """
+    Reads Bank Transactions CSV, batches records, and executes UNWIND Cypher queries
+    to create Person and BankAccount nodes, [:OWNS_ACCOUNT] edges, and [:TRANSFERRED_TO] edges.
+    """
+    if file_path is None or not os.path.exists(file_path):
+        file_path = find_csv_file(["Bank_Transactions.csv", "e:/SIH26189/Bank_Transactions.csv"])
+
+    logger.info(f"Ingesting Bank Transactions from: {file_path}")
+    df = pd.read_csv(file_path)
+
+    # Clean and standardize columns
+    df['sender_name'] = df['sender_name'].astype(str).str.strip()
+    df['sender_account'] = df['sender_account'].astype(str).str.strip()
+    df['receiver_name'] = df['receiver_name'].astype(str).str.strip()
+    df['receiver_account'] = df['receiver_account'].astype(str).str.strip()
+    df['amount_inr'] = pd.to_numeric(df['amount_inr'], errors='coerce').fillna(0.0).astype(float)
+    df['transaction_date'] = df['transaction_date'].astype(str).str.strip()
+    df['remarks'] = df['remarks'].astype(str).str.strip()
+
+    records = []
+    for _, row in df.iterrows():
+        records.append({
+            "sender_name": row['sender_name'],
+            "sender_account": row['sender_account'],
+            "receiver_name": row['receiver_name'],
+            "receiver_account": row['receiver_account'],
+            "amount": float(row['amount_inr']),
+            "date": row['transaction_date'],
+            "remarks": row['remarks']
+        })
+
+    cypher_query = """
+    UNWIND $batch AS row
+    MERGE (senderPerson:Person {name: row.sender_name})
+    MERGE (senderAcc:BankAccount {account_id: row.sender_account})
+    MERGE (senderPerson)-[:OWNS_ACCOUNT]->(senderAcc)
+
+    MERGE (receiverPerson:Person {name: row.receiver_name})
+    MERGE (receiverAcc:BankAccount {account_id: row.receiver_account})
+    MERGE (receiverPerson)-[:OWNS_ACCOUNT]->(receiverAcc)
+
+    CREATE (senderAcc)-[:TRANSFERRED_TO {
+        amount: row.amount,
+        date: row.date,
+        remarks: row.remarks
+    }]->(receiverAcc)
+    """
+
+    total_records = len(records)
+    for i in range(0, total_records, BATCH_SIZE):
+        batch = records[i:i + BATCH_SIZE]
+        db.execute_query(cypher_query, {"batch": batch})
+
+    logger.info(f"Successfully ingested {total_records} Bank Transaction records into Neo4j.")
+    return {
+        "status": "success",
+        "file": file_path,
+        "records_ingested": total_records,
+        "relationships": ["OWNS_ACCOUNT", "TRANSFERRED_TO"]
+    }
