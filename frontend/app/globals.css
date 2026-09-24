@@ -2,15 +2,25 @@
 
 @layer base {
   :root {
-    --background: #070d18;
-    --foreground: #f8fafc;
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --primary: #1e40af;
+    --primary-foreground: #ffffff;
+    --border: #e2e8f0;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
   }
 }
 
 body {
-  background-color: #070d18;
-  color: #f8fafc;
+  background-color: #f8fafc;
+  color: #0f172a;
   overflow-x: hidden;
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Hide Next.js dev indicator badge */
@@ -20,32 +30,43 @@ div[data-nextjs-dev-overlay] {
   display: none !important;
 }
 
-/* Official Government HUD Scrollbar */
+/* Crisp Modern Light Theme Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(11, 19, 43, 0.9);
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.5);
-  border-radius: 2px;
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.8);
+  background: #94a3b8;
 }
 
-/* Subtle Enterprise Canvas Grid */
-.enterprise-grid {
-  background-color: #060b14;
+/* Crisp Light Canvas Dot-Grid for Graph Visualization */
+.enterprise-grid-light {
+  background-color: #f8fafc;
   background-image: 
-    linear-gradient(to right, rgba(51, 65, 85, 0.12) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(51, 65, 85, 0.12) 1px, transparent 1px);
-  background-size: 32px 32px;
+    radial-gradient(#cbd5e1 1.25px, transparent 1.25px);
+  background-size: 22px 22px;
 }
 
-/* 🇮🇳 Prominent National Tricolor Bar (4px thick) */
+/* Subtle Card Glow / Shadow */
+.card-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+}
+
+.card-shadow-hover {
+  transition: all 0.2s ease-in-out;
+}
+.card-shadow-hover:hover {
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+}
+
+/* 🇮🇳 Official Indian National Tricolor Bar (4px thick) */
 .tricolor-bar {
   height: 4px;
   background: linear-gradient(
@@ -57,5 +78,5 @@ div[data-nextjs-dev-overlay] {
     #138808 66.66%,
     #138808 100%
   );
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }

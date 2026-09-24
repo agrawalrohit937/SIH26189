@@ -172,7 +172,6 @@ def build_and_save_dataset():
 
     df_cdr = pd.DataFrame(cdr_rows)
     df_cdr.to_csv("CDR_Logs.csv", index=False)
-    df_cdr.to_csv("CDR_Logos.csv", index=False)
     print(f"[+] Saved CDR_Logs.csv ({len(df_cdr)} call events)")
 
     # 2. Generate Bank_Transactions.csv (Includes phone linkages & smurfing chains)

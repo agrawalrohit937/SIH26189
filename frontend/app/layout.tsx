@@ -7,6 +7,7 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -21,24 +22,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="light" suppressHydrationWarning>
       <body
-        className={`${inter.className} antialiased bg-[#070d18] text-slate-100 min-h-screen selection:bg-amber-500 selection:text-slate-950`}
+        className={`${inter.variable} font-sans antialiased bg-slate-50 text-slate-900 min-h-screen selection:bg-amber-200 selection:text-slate-900`}
         suppressHydrationWarning
       >
         {children}
         <Toaster
-          theme="dark"
+          theme="light"
           position="bottom-right"
           richColors
           closeButton
           toastOptions={{
             style: {
-              background: "#0f172a",
-              border: "1px solid #334155",
-              color: "#f8fafc",
+              background: "#ffffff",
+              border: "1px solid #e2e8f0",
+              color: "#0f172a",
               fontFamily: "inherit",
-              fontSize: "12px",
+              fontSize: "13px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
             },
           }}
         />

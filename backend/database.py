@@ -65,7 +65,7 @@ class Neo4jDatabase:
     def get_graph_topology(self, limit: int = 500) -> Dict[str, Any]:
         """
         Fetches all nodes and relationships from Neo4j and formats them
-        strictly into Cytoscape.js elements schema: {"elements": {"nodes": [...], "edges": [...]}}
+        strictly into Cytoscape.js elements schema matching the Criminal Network Graph visualization design.
         """
         query = """
         MATCH (n)
@@ -79,6 +79,18 @@ class Neo4jDatabase:
         
         nodes_dict: Dict[str, Dict[str, Any]] = {}
         edges_dict: Dict[str, Dict[str, Any]] = {}
+        node_degrees: Dict[str, int] = {}
+
+        # First pass to compute degrees to identify key central suspect
+        for row in records:
+            n_node = row.get("n")
+            m_node = row.get("m")
+            if n_node:
+                s_id = str(n_node.get("name") or n_node.get("number") or n_node.get("account_id") or row.get("n_id"))
+                node_degrees[s_id] = node_degrees.get(s_id, 0) + 1
+            if m_node:
+                t_id = str(m_node.get("name") or m_node.get("number") or m_node.get("account_id") or row.get("m_id"))
+                node_degrees[t_id] = node_degrees.get(t_id, 0) + 1
 
         def process_node(node_data: Optional[Dict[str, Any]], labels: Optional[List[str]], eid: Optional[str]) -> Optional[str]:
             if not node_data or not eid:
@@ -86,44 +98,59 @@ class Neo4jDatabase:
             
             node_type = labels[0] if labels and len(labels) > 0 else "Entity"
             
-            # Extract distinct primary key / identifier
+            # Extract primary key and label
             if "name" in node_data and node_data["name"]:
                 node_id = str(node_data["name"])
                 label = str(node_data["name"])
             elif "number" in node_data and node_data["number"]:
                 node_id = str(node_data["number"])
-                label = str(node_data["number"])
+                raw_num = str(node_data["number"])
+                label = f"+91 {raw_num}" if len(raw_num) == 10 and not raw_num.startswith("+") else raw_num
             elif "account_id" in node_data and node_data["account_id"]:
                 node_id = str(node_data["account_id"])
-                label = str(node_data["account_id"])
+                bank_pfx = node_data.get("bank_name", "Bank")
+                label = f"{bank_pfx} A/c {node_data['account_id']}"
+            elif "location" in node_data and node_data["location"]:
+                node_id = str(node_data["location"])
+                label = str(node_data["location"])
             else:
                 node_id = str(eid)
                 label = str(eid)
 
             if node_id not in nodes_dict:
+                role = str(node_data.get("role", "")).strip()
+                is_lead_role = any(kw in role.lower() for kw in ["lead", "kingpin", "director", "key suspect", "boss", "head"])
+                
                 data_payload: Dict[str, Any] = {
                     "id": node_id,
                     "label": label,
                     "type": node_type,
                     "elementId": eid,
+                    "cluster": str(node_data.get("cluster", "0")),
+                    "degree": node_degrees.get(node_id, 1),
                 }
+
                 # Attach extra attributes if present
                 for k, v in node_data.items():
                     data_payload[k] = v
-                
-                # Step 2: Ensure cluster property is explicitly populated as string
-                data_payload["cluster"] = str(node_data.get("cluster", "unclustered"))
 
-                # Add sublabel
+                # Sublabel and Key Suspect Tagging
                 if node_type == "Person":
-                    data_payload["sublabel"] = node_data.get("role", "Suspect")
+                    # Mark if key suspect
+                    if is_lead_role or (role and "suspect" in role.lower()) or node_degrees.get(node_id, 0) >= 5:
+                        data_payload["isKeySuspect"] = True
+                        data_payload["sublabel"] = "(Key Suspect)"
+                    else:
+                        data_payload["isKeySuspect"] = False
+                        data_payload["sublabel"] = f"({role})" if role else "(Person)"
                 elif node_type == "PhoneNumber":
-                    data_payload["sublabel"] = node_data.get("carrier", "Carrier Network")
+                    data_payload["sublabel"] = "Phone"
                 elif node_type == "BankAccount":
-                    data_payload["sublabel"] = node_data.get("bank_name", "Banking Entity")
+                    data_payload["sublabel"] = "Account"
+                elif node_type == "Location":
+                    data_payload["sublabel"] = "Location"
 
                 nodes_dict[node_id] = {"data": data_payload}
-
 
             return node_id
 
@@ -145,15 +172,32 @@ class Neo4jDatabase:
             if source_id and target_id and r_type and r_eid:
                 edge_id = f"edge_{r_eid}"
                 if edge_id not in edges_dict:
-                    # Formulate clear label
+                    # User-friendly edge labels
                     if r_type == "CALLED":
                         dur = r_props.get("duration")
-                        edge_label = f"CALLED ({dur}s)" if dur else "CALLED"
+                        edge_label = f"calls ({dur}s)" if dur else "calls"
                     elif r_type == "TRANSFERRED_TO":
                         amt = r_props.get("amount")
-                        edge_label = f"₹{int(amt):,}" if amt is not None else "TRANSFERRED"
+                        if amt is not None:
+                            amt_k = f"₹{int(amt/1000)}k" if amt >= 1000 else f"₹{int(amt)}"
+                            edge_label = f"transaction ({amt_k})"
+                        else:
+                            edge_label = "transaction"
+                    elif r_type == "OWNS_PHONE" or r_type == "HAS_PHONE":
+                        edge_label = "uses"
+                    elif r_type == "OWNS_ACCOUNT":
+                        edge_label = "financial link"
+                    elif r_type == "ASSOCIATED_WITH":
+                        rel = r_props.get("relationship", "known associate")
+                        edge_label = str(rel)
+                    elif r_type == "SEEN_AT" or r_type == "VISITED":
+                        edge_label = "seen at"
                     else:
-                        edge_label = str(r_type)
+                        edge_label = str(r_type).lower().replace("_", " ")
+
+                    # Check if smurfing amount
+                    amt_val = float(r_props.get("amount") or 0.0)
+                    is_smurfing = 49000.0 <= amt_val <= 49999.0
 
                     edge_payload: Dict[str, Any] = {
                         "id": edge_id,
@@ -162,11 +206,19 @@ class Neo4jDatabase:
                         "label": edge_label,
                         "type": r_type,
                         "elementId": r_eid,
+                        "isSmurfing": is_smurfing,
                     }
                     for k, v in r_props.items():
                         edge_payload[k] = v
 
                     edges_dict[edge_id] = {"data": edge_payload}
+
+        # If no key suspect was marked explicitly, mark the person with highest degree
+        person_nodes = [n for n in nodes_dict.values() if n["data"].get("type") == "Person"]
+        if person_nodes and not any(p["data"].get("isKeySuspect") for p in person_nodes):
+            highest_degree_person = max(person_nodes, key=lambda p: p["data"].get("degree", 0))
+            highest_degree_person["data"]["isKeySuspect"] = True
+            highest_degree_person["data"]["sublabel"] = "(Key Suspect)"
 
         return {
             "elements": {

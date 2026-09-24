@@ -8,6 +8,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Minimize2,
   Users,
   Phone,
   CreditCard,
@@ -15,9 +16,18 @@ import {
   Search,
   Info,
   Loader2,
-  ArrowRightLeft,
   Network,
   Radio,
+  Copy,
+  Check,
+  MapPin,
+  Car,
+  Route,
+  Focus,
+  ShieldAlert,
+  Sparkles,
+  Eye,
+  SlidersHorizontal
 } from "lucide-react";
 import cytoscape, { Core, ElementDefinition } from "cytoscape";
 import fcose from "cytoscape-fcose";
@@ -31,13 +41,30 @@ if (typeof window !== "undefined") {
   }
 }
 
+// Data URI SVGs for sharp crisp node icons
+const SVG_ICONS = {
+  person: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`,
+  phone: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>`,
+  bank: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>`,
+  location: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`,
+  vehicle: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17H5v-4.66l.12-.34h13.77l.11.34V17z"/><circle cx="7.5" cy="14.5" r="1.5"/><circle cx="16.5" cy="14.5" r="1.5"/></svg>`
+};
+
+const CLUSTER_METADATA: Record<string, { label: string; bgColor: string; borderColor: string; textColor: string }> = {
+  "0": { label: "📁 Group A: Core Coordinators & Transport", bgColor: "#fef9c3", borderColor: "#facc15", textColor: "#854d0e" },
+  "1": { label: "📁 Group B: Financial Mules & Structuring", bgColor: "#e0f2fe", borderColor: "#7dd3fc", textColor: "#0369a1" },
+  "2": { label: "📁 Group C: Operations & Telecom Cell", bgColor: "#dcfce7", borderColor: "#86efac", textColor: "#15803d" },
+  "3": { label: "📁 Group D: Regional Hawala Channel", bgColor: "#ffe4e6", borderColor: "#fda4af", textColor: "#be123c" },
+  "unclustered": { label: "📁 Unassigned Network Cell", bgColor: "#f1f5f9", borderColor: "#cbd5e1", textColor: "#334155" },
+};
+
 interface NetworkGraphPanelProps {
   apiBaseUrl: string;
   refreshTrigger?: number;
   onRefreshLiveGraph?: () => void;
 }
 
-// Step 3: Transform raw elements into compound graph elements grouped by cluster
+// Transform raw elements into compound graph elements grouped by cluster
 function buildCompoundElements(
   rawNodes: ElementDefinition[],
   rawEdges: ElementDefinition[]
@@ -45,36 +72,61 @@ function buildCompoundElements(
   if (!rawNodes || rawNodes.length === 0) return [];
 
   const clusterIds = Array.from(
-    new Set(rawNodes.map((n) => String(n.data.cluster || "unclustered")))
+    new Set(rawNodes.map((n) => String(n.data.cluster || "0")))
   );
 
-  // Parent compound containers
-  const clusterParents: ElementDefinition[] = clusterIds.map((clusterId) => ({
-    data: {
-      id: `cluster-${clusterId}`,
-      label:
-        clusterId === "unclustered"
-          ? "Unassigned Entities"
-          : `Cell ${clusterId} (Syndicate Cluster)`,
-      isClusterParent: true,
-      cluster: clusterId,
-    },
-  }));
+  // Parent compound containers (Pastel cloud containers with generous padding)
+  const clusterParents: ElementDefinition[] = clusterIds.map((clusterId) => {
+    const meta = CLUSTER_METADATA[clusterId] || {
+      label: `📁 Group ${String.fromCharCode(65 + (parseInt(clusterId) || 0))}: Syndicate Cell ${clusterId}`,
+      bgColor: "#f3e8ff",
+      borderColor: "#d8b4fe",
+      textColor: "#6b21a8",
+    };
+    return {
+      data: {
+        id: `cluster-${clusterId}`,
+        label: meta.label,
+        isClusterParent: true,
+        cluster: clusterId,
+      },
+    };
+  });
 
-  // Child nodes assigned to parent compound containers
-  const childNodes: ElementDefinition[] = rawNodes.map((n) => ({
-    ...n,
-    data: {
-      ...n.data,
-      parent: `cluster-${String(n.data.cluster || "unclustered")}`,
-    },
-  }));
+  // Child nodes assigned to parent compound containers with clean, readable 2-tier labels
+  const childNodes: ElementDefinition[] = rawNodes.map((n) => {
+    const isKey = Boolean(n.data.isKeySuspect);
+    let roleTag = "";
+    if (n.data.type === "Person") {
+      roleTag = isKey ? "★ KEY SUSPECT" : "PERSON";
+    } else if (n.data.type === "PhoneNumber") {
+      roleTag = "PHONE";
+    } else if (n.data.type === "BankAccount") {
+      roleTag = "BANK A/C";
+    } else if (n.data.type === "Vehicle") {
+      roleTag = "VEHICLE";
+    } else if (n.data.type === "Location") {
+      roleTag = "LOCATION";
+    }
+
+    const primaryLabel = String(n.data.label || n.data.name || n.data.id);
+    const formattedDisplay = roleTag ? `${primaryLabel}\n[${roleTag}]` : primaryLabel;
+
+    return {
+      ...n,
+      data: {
+        ...n.data,
+        displayLabel: formattedDisplay,
+        parent: `cluster-${String(n.data.cluster || "0")}`,
+      },
+    };
+  });
 
   // Edges annotated with cross-cluster flag for distinct bridge styling
   const nodeClusterMap = new Map<string, string>();
   rawNodes.forEach((n) => {
     if (n.data?.id) {
-      nodeClusterMap.set(String(n.data.id), String(n.data.cluster || "unclustered"));
+      nodeClusterMap.set(String(n.data.id), String(n.data.cluster || "0"));
     }
   });
 
@@ -82,12 +134,13 @@ function buildCompoundElements(
     const sCluster = nodeClusterMap.get(String(e.data.source));
     const tCluster = nodeClusterMap.get(String(e.data.target));
     const isCross = Boolean(sCluster && tCluster && sCluster !== tCluster);
+    const isSmurf = Boolean(e.data.isSmurfing);
     return {
       ...e,
       data: {
         ...e.data,
-        crossCluster: String(isCross),
-        isCross: isCross,
+        crossCluster: String(isCross || isSmurf),
+        isCross: isCross || isSmurf,
       },
     };
   });
@@ -100,222 +153,370 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
   refreshTrigger = 0,
   onRefreshLiveGraph,
 }) => {
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
+
   const [elements, setElements] = useState<ElementDefinition[]>([]);
   const [isLoadingGraph, setIsLoadingGraph] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [layoutName, setLayoutName] = useState<string>("fcose");
   const [filterType, setFilterType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [copiedText, setCopiedText] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Path tracing state (Specialty 1)
+  const [pathTraceMode, setPathTraceMode] = useState(false);
+  const [pathStartNode, setPathStartNode] = useState<string | null>(null);
+
   const isInitialMount = useRef(true);
 
-  // Authoritative Law Enforcement Stylesheet (Compound Cells, Cluster Palettes & Bridge Styles)
+  // Authoritative, High-Legibility Graph Stylesheet
   const cytoscapeStylesheet: any[] = useMemo(
     () => [
-      // Base Node Style (Non-parent nodes)
+      // Base Node (Circle with white icon inside, large clean 2-tier badge below)
       {
         selector: "node:not([?isClusterParent])",
         style: {
-          label: "", // hidden by default to avoid visual clutter
-          color: "#f8fafc",
-          "font-size": "10px",
-          "font-weight": "600",
+          shape: "ellipse",
+          width: 48,
+          height: 48,
+          "background-color": "#2563eb",
+          "border-width": 3,
+          "border-color": "#ffffff",
+          "background-fit": "none",
+          "background-clip": "node",
+          "background-width": "55%",
+          "background-height": "55%",
+          "background-position-x": "50%",
+          "background-position-y": "50%",
+          "background-image": SVG_ICONS.person,
+          // 2-tier label styling with clean white badge
+          label: "data(displayLabel)",
+          color: "#0f172a",
+          "font-size": "11px",
+          "font-weight": "800",
           "font-family": "system-ui, -apple-system, sans-serif",
           "text-valign": "bottom",
           "text-halign": "center",
-          "text-margin-y": 5,
-          "text-background-opacity": 0.95,
-          "text-background-color": "#020617",
-          "text-background-padding": "2.5px",
+          "text-margin-y": 10,
+          "text-wrap": "wrap",
+          "text-max-width": "140px",
+          "text-background-opacity": 0.98,
+          "text-background-color": "#ffffff",
+          "text-background-padding": "5px",
           "text-background-shape": "roundrectangle",
-          "text-border-opacity": 0.85,
-          "text-border-width": 1,
-          "text-border-color": "#334155",
-          "border-width": 2,
-          "border-color": "#475569",
-          "background-color": "#1e293b",
+          "text-border-opacity": 0.9,
+          "text-border-width": 1.5,
+          "text-border-color": "#cbd5e1",
+          "shadow-blur": 10,
+          "shadow-color": "rgba(0, 0, 0, 0.12)",
+          "shadow-opacity": 0.8,
+          transition: "opacity 0.25s ease-in-out, border-width 0.2s ease-in-out",
         },
       },
-      // Show node labels only on hover or selection
+      // Key Suspect Person Node (BOLD RED, Glowing Ring)
       {
-        selector: "node:not([?isClusterParent]):selected, node:not([?isClusterParent]).hovered",
+        selector: "node[type='Person'][?isKeySuspect]:not([?isClusterParent])",
         style: {
-          label: "data(label)",
-          "z-index": 999,
+          width: 58,
+          height: 58,
+          "background-color": "#dc2626",
+          "border-color": "#fef08a",
+          "border-width": 4.5,
+          "background-image": SVG_ICONS.person,
+          "shadow-blur": 18,
+          "shadow-color": "rgba(220, 38, 38, 0.45)",
+          "text-border-color": "#fca5a5",
+          "text-border-width": 2,
         },
       },
-      // Selected Child Node
+      // Standard Person Node (Royal Navy)
       {
-        selector: "node:not([?isClusterParent]):selected",
+        selector: "node[type='Person'][!isKeySuspect]:not([?isClusterParent])",
         style: {
-          "border-color": "#f59e0b",
-          "border-width": 3.5,
-          "background-color": "#d97706",
+          width: 48,
+          height: 48,
+          "background-color": "#1e40af",
+          "border-color": "#ffffff",
+          "background-image": SVG_ICONS.person,
+          "text-border-color": "#93c5fd",
         },
       },
-      // Step 4: Compound Cluster Parent Box Styling
-      {
-        selector: "node[?isClusterParent]",
-        style: {
-          "background-opacity": 0.07,
-          "background-color": "#3b82f6",
-          "border-width": 1.5,
-          "border-style": "dashed",
-          "border-color": "#60a5fa",
-          label: "data(label)",
-          "text-valign": "top",
-          "text-halign": "center",
-          "font-size": "11px",
-          "font-weight": "700",
-          color: "#93c5fd",
-          padding: 24,
-          "text-background-opacity": 0,
-          "border-opacity": 0.75,
-          "events": "no", // allow clicks to pass to child elements
-        },
-      },
-      // Person Node Shape (shape: ellipse)
-      {
-        selector: "node[type='Person']:not([?isClusterParent])",
-        style: {
-          shape: "ellipse",
-          width: 36,
-          height: 36,
-        },
-      },
-      // PhoneNumber Node Shape (shape: round-rectangle)
+      // PhoneNumber Node (EMERALD GREEN circle with Phone Icon)
       {
         selector: "node[type='PhoneNumber']:not([?isClusterParent])",
         style: {
-          shape: "round-rectangle",
-          width: 32,
-          height: 32,
+          width: 46,
+          height: 46,
+          "background-color": "#059669",
+          "border-color": "#ffffff",
+          "background-image": SVG_ICONS.phone,
+          "text-border-color": "#86efac",
         },
       },
-      // BankAccount Node Shape (shape: diamond)
+      // BankAccount Node (SLATE / CYAN BLUE circle with Bank Icon)
       {
         selector: "node[type='BankAccount']:not([?isClusterParent])",
         style: {
-          shape: "diamond",
-          width: 34,
-          height: 34,
+          width: 46,
+          height: 46,
+          "background-color": "#0284c7",
+          "border-color": "#ffffff",
+          "background-image": SVG_ICONS.bank,
+          "text-border-color": "#7dd3fc",
         },
       },
-      // Step 4: Cluster Color Mapping (Palette: 0:Blue, 1:Emerald, 2:Amber, 3:Rose, 4:Purple, 5:Pink, unclustered:Gray)
+      // Location / Tower Node (PURPLE circle with Map Pin Icon)
       {
-        selector: 'node[cluster = "0"]:not([?isClusterParent])',
-        style: { "background-color": "#2563eb", "border-color": "#93c5fd" },
+        selector: "node[type='Location']:not([?isClusterParent])",
+        style: {
+          width: 46,
+          height: 46,
+          "background-color": "#7c3aed",
+          "border-color": "#ffffff",
+          "background-image": SVG_ICONS.location,
+          "text-border-color": "#d8b4fe",
+        },
+      },
+      // Vehicle Node (AMBER circle with Car Icon)
+      {
+        selector: "node[type='Vehicle']:not([?isClusterParent])",
+        style: {
+          width: 46,
+          height: 46,
+          "background-color": "#d97706",
+          "border-color": "#ffffff",
+          "background-image": SVG_ICONS.vehicle,
+          "text-border-color": "#fde047",
+        },
+      },
+      // Hover & Selected Node State (Investigative Focus Glow)
+      {
+        selector: "node:not([?isClusterParent]):selected, node:not([?isClusterParent]).hovered",
+        style: {
+          "border-color": "#ea580c",
+          "border-width": 5,
+          "text-background-color": "#0f172a",
+          "text-border-color": "#ea580c",
+          color: "#ffffff",
+          "font-size": "12px",
+          "z-index": 9999,
+          "shadow-blur": 22,
+          "shadow-color": "rgba(234, 88, 12, 0.6)",
+        },
+      },
+      // Dimmed state for non-focused elements
+      {
+        selector: ".dimmed",
+        style: {
+          opacity: 0.15,
+          "z-index": 1,
+        },
+      },
+      // Highlighted path elements
+      {
+        selector: ".path-highlighted",
+        style: {
+          "border-color": "#eab308",
+          "border-width": 6,
+          "line-color": "#eab308",
+          "target-arrow-color": "#eab308",
+          width: 4.5,
+          "z-index": 999,
+          opacity: 1,
+        },
+      },
+      // Compound Group / Community Parent Containers (Spacious Pastel Cloud Box)
+      {
+        selector: "node[?isClusterParent]",
+        style: {
+          "background-opacity": 0.35,
+          "background-color": "#fef9c3",
+          "border-width": 2,
+          "border-style": "dashed",
+          "border-color": "#facc15",
+          label: "data(label)",
+          "text-valign": "top",
+          "text-halign": "center",
+          "font-size": "12px",
+          "font-weight": "800",
+          color: "#854d0e",
+          padding: 60,
+          "text-background-opacity": 0.98,
+          "text-background-color": "#ffffff",
+          "text-background-padding": "6px",
+          "text-background-shape": "roundrectangle",
+          "text-border-width": 1.5,
+          "text-border-color": "#facc15",
+          "border-opacity": 0.9,
+          events: "no",
+        },
       },
       {
-        selector: 'node[cluster = "1"]:not([?isClusterParent])',
-        style: { "background-color": "#059669", "border-color": "#6ee7b7" },
+        selector: 'node[?isClusterParent][cluster = "0"]',
+        style: {
+          "background-color": "#fef9c3",
+          "border-color": "#facc15",
+          color: "#854d0e",
+          "text-border-color": "#facc15",
+        },
       },
       {
-        selector: 'node[cluster = "2"]:not([?isClusterParent])',
-        style: { "background-color": "#d97706", "border-color": "#fde68a" },
+        selector: 'node[?isClusterParent][cluster = "1"]',
+        style: {
+          "background-color": "#e0f2fe",
+          "border-color": "#7dd3fc",
+          color: "#0369a1",
+          "text-border-color": "#7dd3fc",
+        },
       },
       {
-        selector: 'node[cluster = "3"]:not([?isClusterParent])',
-        style: { "background-color": "#dc2626", "border-color": "#fca5a5" },
+        selector: 'node[?isClusterParent][cluster = "2"]',
+        style: {
+          "background-color": "#dcfce7",
+          "border-color": "#86efac",
+          color: "#15803d",
+          "text-border-color": "#86efac",
+        },
       },
       {
-        selector: 'node[cluster = "4"]:not([?isClusterParent])',
-        style: { "background-color": "#7c3aed", "border-color": "#c4b5fd" },
+        selector: 'node[?isClusterParent][cluster = "3"]',
+        style: {
+          "background-color": "#ffe4e6",
+          "border-color": "#fda4af",
+          color: "#be123c",
+          "text-border-color": "#fda4af",
+        },
       },
-      {
-        selector: 'node[cluster = "5"]:not([?isClusterParent])',
-        style: { "background-color": "#db2777", "border-color": "#fbcfe8" },
-      },
-      {
-        selector: 'node[cluster = "unclustered"]:not([?isClusterParent])',
-        style: { "background-color": "#4b5563", "border-color": "#9ca3af" },
-      },
-      // Base Edge Style (Clean, directional arrows)
+      // Base Edge Style (Clean directional arrow with readable label)
       {
         selector: "edge",
         style: {
-          label: "",
-          "font-size": "8.5px",
-          "font-weight": "500",
+          label: "data(label)",
+          "font-size": "10px",
+          "font-weight": "700",
           "font-family": "system-ui, -apple-system, sans-serif",
-          color: "#cbd5e1",
-          "text-background-opacity": 0.9,
-          "text-background-color": "#020617",
-          "text-background-padding": "1.5px",
+          color: "#1e293b",
+          "text-background-opacity": 0.96,
+          "text-background-color": "#ffffff",
+          "text-background-padding": "3px",
           "text-background-shape": "roundrectangle",
-          "text-border-opacity": 0.7,
+          "text-border-opacity": 0.9,
           "text-border-width": 1,
-          "text-border-color": "#334155",
+          "text-border-color": "#cbd5e1",
           "text-rotation": "autorotate",
           "curve-style": "bezier",
           "target-arrow-shape": "triangle",
-          "arrow-scale": 0.85,
-          width: 1.5,
-          "line-color": "#475569",
-          "target-arrow-color": "#475569",
-          "line-style": "dashed",
+          "arrow-scale": 1.1,
+          width: 2.2,
+          "line-color": "#64748b",
+          "target-arrow-color": "#64748b",
+          "line-style": "solid",
+          transition: "opacity 0.25s ease-in-out",
         },
       },
-      // Step 4: Cross-Cluster Bridge Edge Styling (Prominent orange dashed line)
+      // Predicted / Potential Link / Smurfing Structuring (Crimson Red Dashed Arrow)
       {
-        selector: 'edge[crossCluster = "true"]',
+        selector: 'edge[crossCluster = "true"], edge[?isSmurfing]',
         style: {
-          "line-color": "#f97316",
-          "target-arrow-color": "#f97316",
+          "line-color": "#dc2626",
+          "target-arrow-color": "#dc2626",
           "line-style": "dashed",
-          width: 2.2,
+          width: 2.8,
           "z-index": 20,
-          label: "inter-cell bridge",
-          "font-size": "8px",
-          color: "#fdba74",
+          color: "#991b1b",
+          "text-border-color": "#fca5a5",
           "text-rotation": "autorotate",
         },
       },
-      // Intra-Cluster Edge Styling (Muted)
-      {
-        selector: 'edge[crossCluster = "false"]',
-        style: {
-          "line-color": "#475569",
-          "target-arrow-color": "#475569",
-          width: 1.2,
-          opacity: 0.65,
-        },
-      },
-      // Edge on hover/select shows label
+      // Hover & Selected Edge
       {
         selector: "edge:selected, edge.hovered",
         style: {
           label: "data(label)",
-          "z-index": 999,
-          width: 3,
-          "line-color": "#f59e0b",
-          "target-arrow-color": "#f59e0b",
+          "z-index": 9999,
+          width: 4,
+          "line-color": "#ea580c",
+          "target-arrow-color": "#ea580c",
           color: "#ffffff",
+          "text-background-color": "#0f172a",
+          "text-border-color": "#ea580c",
+          "font-weight": "800",
         },
       },
     ],
     []
   );
 
-  // Step 4: Compound-Aware fCoSE Layout Configuration
-  const layoutConfig = useMemo(
-    () => ({
-      name: layoutName === "fcose" || layoutName === "cose" ? "fcose" : layoutName,
+  // Layout Configuration with ample spacing
+  const layoutConfig = useMemo(() => {
+    if (layoutName === "concentric") {
+      return {
+        name: "concentric",
+        animate: true,
+        animationDuration: 600,
+        padding: 70,
+        concentric: (node: any) => {
+          if (node.data("isKeySuspect")) return 4;
+          if (node.data("type") === "Person") return 3;
+          if (node.data("type") === "PhoneNumber") return 2;
+          return 1;
+        },
+        levelWidth: () => 1,
+        nodeDimensionsIncludeLabels: true,
+      };
+    }
+    if (layoutName === "breadthfirst") {
+      return {
+        name: "breadthfirst",
+        directed: true,
+        animate: true,
+        animationDuration: 600,
+        padding: 70,
+        spacingFactor: 1.8,
+        nodeDimensionsIncludeLabels: true,
+      };
+    }
+    if (layoutName === "circle") {
+      return {
+        name: "circle",
+        animate: true,
+        animationDuration: 600,
+        padding: 80,
+        spacingFactor: 1.6,
+        nodeDimensionsIncludeLabels: true,
+      };
+    }
+    if (layoutName === "grid") {
+      return {
+        name: "grid",
+        animate: true,
+        animationDuration: 600,
+        padding: 80,
+        nodeDimensionsIncludeLabels: true,
+      };
+    }
+
+    // Default: fCoSE force-directed organic with wide spacing
+    return {
+      name: "fcose",
       quality: "proof",
       animate: true,
       animationDuration: 600,
-      padding: 35,
+      padding: 70,
       fit: true,
-      nodeRepulsion: () => 6500,
-      idealEdgeLength: (edge: any) => (edge.data("isCross") ? 220 : 70),
-      nodeSeparation: 80,
+      nodeRepulsion: (node: any) => (node.data("isKeySuspect") ? 60000 : 35000),
+      idealEdgeLength: (edge: any) => (edge.data("isCross") ? 380 : 200),
+      nodeSeparation: 180,
       packComponents: true,
-      nestingFactor: 0.08,
+      nestingFactor: 0.1,
+      gravity: 0.15,
+      gravityRangeCompound: 2.2,
       tile: false,
-    }),
-    [layoutName]
-  );
+    };
+  }, [layoutName]);
 
   // Filter elements
   const filteredElements = useMemo(() => {
@@ -346,16 +547,17 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (el) =>
-          (el.data.label && el.data.label.toLowerCase().includes(q)) ||
-          (el.data.sublabel && el.data.sublabel.toLowerCase().includes(q)) ||
-          (el.data.role && el.data.role.toLowerCase().includes(q))
+          (el.data.label && String(el.data.label).toLowerCase().includes(q)) ||
+          (el.data.sublabel && String(el.data.sublabel).toLowerCase().includes(q)) ||
+          (el.data.role && String(el.data.role).toLowerCase().includes(q)) ||
+          (el.data.id && String(el.data.id).toLowerCase().includes(q))
       );
     }
 
     return result;
   }, [elements, filterType, searchQuery]);
 
-  // Safe Graph Mutator (Processes compound nodes & executes layout)
+  // Safe Graph Mutator
   const updateGraph = useCallback(
     (newElements: ElementDefinition[]) => {
       let cy = cyRef.current;
@@ -367,60 +569,78 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           elements: [],
           style: cytoscapeStylesheet,
           layout: layoutConfig as any,
+          wheelSensitivity: 0.35,
         });
         cyRef.current = cy;
 
-        cy.on("mouseover", "node:not([?isClusterParent]), edge", (evt) => {
+        const cyInst = cy;
+
+        // Hover events
+        cyInst.on("mouseover", "node:not([?isClusterParent]), edge", (evt) => {
           evt.target.addClass("hovered");
         });
-        cy.on("mouseout", "node:not([?isClusterParent]), edge", (evt) => {
+        cyInst.on("mouseout", "node:not([?isClusterParent]), edge", (evt) => {
           evt.target.removeClass("hovered");
         });
 
-        cy.on("tap", "node:not([?isClusterParent])", (evt) => {
+        // Click on node: Trigger 1-Hop Focus Highlighting
+        cyInst.on("tap", "node:not([?isClusterParent])", (evt) => {
+          const node = evt.target;
           setSelectedItem({
             type: "node",
-            data: evt.target.data(),
+            data: node.data(),
           });
+
+          // Focus Highlighting: Dim unrelated nodes
+          evt.cy.elements().removeClass("dimmed path-highlighted");
+          const neighborhood = node.neighborhood().add(node);
+          evt.cy.elements().not(neighborhood).addClass("dimmed");
         });
-        cy.on("tap", "edge", (evt) => {
+
+        // Click on edge
+        cyInst.on("tap", "edge", (evt) => {
           setSelectedItem({
             type: "edge",
             data: evt.target.data(),
           });
         });
-        cy.on("tap", (evt) => {
-          if (evt.target === cy) {
+
+        // Tap on background: Reset Focus
+        cyInst.on("tap", (evt) => {
+          if (evt.target === evt.cy) {
             setSelectedItem(null);
+            evt.cy.elements().removeClass("dimmed path-highlighted");
           }
         });
       }
 
+      const activeCy = cy;
+      if (!activeCy) return;
+
       try {
-        cy.stop();
-        cy.elements().remove();
+        activeCy.stop();
+        activeCy.elements().remove();
 
         const rawNodes = newElements.filter((el) => !el.data.source);
         const rawEdges = newElements.filter((el) => el.data.source);
 
-        // Build Compound Hierarchy
         const compoundElements = buildCompoundElements(rawNodes, rawEdges);
 
         if (compoundElements.length > 0) {
-          cy.add(compoundElements);
-          cy.resize();
-          const layout = cy.layout(layoutConfig as any);
+          activeCy.add(compoundElements);
+          activeCy.resize();
+          const layout = activeCy.layout(layoutConfig as any);
           layout.run();
-          cy.fit(undefined, 35);
+          activeCy.fit(undefined, 60);
         }
       } catch (err) {
-        console.error("Error updating compound cytoscape graph:", err);
+        console.error("Error updating cytoscape graph:", err);
       }
     },
     [layoutConfig, cytoscapeStylesheet]
   );
 
-  // Initialize Cytoscape on mount
+  // Initialize Cytoscape container
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -439,6 +659,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       elements: [],
       style: cytoscapeStylesheet,
       layout: layoutConfig as any,
+      wheelSensitivity: 0.35,
     });
 
     cyRef.current = cy;
@@ -451,20 +672,29 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     });
 
     cy.on("tap", "node:not([?isClusterParent])", (evt) => {
+      const node = evt.target;
       setSelectedItem({
         type: "node",
-        data: evt.target.data(),
+        data: node.data(),
       });
+
+      // Highlight neighborhood
+      cy.elements().removeClass("dimmed path-highlighted");
+      const neighborhood = node.neighborhood().add(node);
+      cy.elements().not(neighborhood).addClass("dimmed");
     });
+
     cy.on("tap", "edge", (evt) => {
       setSelectedItem({
         type: "edge",
         data: evt.target.data(),
       });
     });
+
     cy.on("tap", (evt) => {
       if (evt.target === cy) {
         setSelectedItem(null);
+        cy.elements().removeClass("dimmed path-highlighted");
       }
     });
 
@@ -479,7 +709,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       }
       cyRef.current = null;
     };
-  }, [cytoscapeStylesheet]);
+  }, [cytoscapeStylesheet, layoutConfig]);
 
   // Fetch Live Graph Topology from Neo4j
   const fetchLiveGraph = useCallback(
@@ -529,17 +759,12 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     [apiBaseUrl, onRefreshLiveGraph]
   );
 
-  // Initial Auto-Sync on Dashboard Mount
-  useEffect(() => {
-    fetchLiveGraph(true);
-  }, [fetchLiveGraph]);
-
   // Push filtered elements whenever data or filters change
   useEffect(() => {
     updateGraph(filteredElements);
   }, [filteredElements, updateGraph]);
 
-  // When parent triggers a refresh (e.g. after file ingestion)
+  // When parent triggers a refresh (e.g. after file ingestion or purge)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -548,7 +773,6 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     if (refreshTrigger > 0) {
       fetchLiveGraph(false);
     } else if (refreshTrigger === -1) {
-      // Purge / Reset triggered
       setElements([]);
       if (cyRef.current && !cyRef.current.destroyed()) {
         cyRef.current.stop();
@@ -558,143 +782,284 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     }
   }, [refreshTrigger, fetchLiveGraph]);
 
+  // Handle Fullscreen Toggle
+  const handleToggleFullscreen = () => {
+    setIsFullscreen((prev) => {
+      const nextState = !prev;
+      setTimeout(() => {
+        if (cyRef.current && !cyRef.current.destroyed()) {
+          cyRef.current.resize();
+          cyRef.current.fit(undefined, 60);
+        }
+      }, 200);
+      return nextState;
+    });
+  };
+
+  // Keyboard ESC listener for fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullscreen) {
+        setIsFullscreen(false);
+        setTimeout(() => {
+          if (cyRef.current && !cyRef.current.destroyed()) {
+            cyRef.current.resize();
+            cyRef.current.fit(undefined, 50);
+          }
+        }, 200);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen]);
+
   const handleZoomIn = () => {
     if (cyRef.current && !cyRef.current.destroyed()) {
-      cyRef.current.zoom(cyRef.current.zoom() * 1.25);
+      cyRef.current.zoom(cyRef.current.zoom() * 1.3);
     }
   };
 
   const handleZoomOut = () => {
     if (cyRef.current && !cyRef.current.destroyed()) {
-      cyRef.current.zoom(cyRef.current.zoom() * 0.8);
+      cyRef.current.zoom(cyRef.current.zoom() / 1.3);
     }
   };
 
   const handleFit = () => {
     if (cyRef.current && !cyRef.current.destroyed()) {
-      cyRef.current.fit(undefined, 35);
+      cyRef.current.fit(undefined, 60);
     }
   };
 
-  // Dynamic statistics
+  const handleResetFocus = () => {
+    if (cyRef.current && !cyRef.current.destroyed()) {
+      cyRef.current.elements().removeClass("dimmed path-highlighted");
+      setSelectedItem(null);
+      cyRef.current.fit(undefined, 60);
+    }
+  };
+
+  const handleCopyInspector = () => {
+    if (!selectedItem) return;
+    navigator.clipboard.writeText(JSON.stringify(selectedItem.data, null, 2));
+    setCopiedText(true);
+    toast.success("Details Copied to Clipboard");
+    setTimeout(() => setCopiedText(false), 2000);
+  };
+
+  // Dynamic statistics for entity counts
   const stats = useMemo(() => {
     const nodes = elements.filter((el) => !el.data.source);
     const edges = elements.filter((el) => el.data.source);
     const persons = nodes.filter((n) => n.data.type === "Person").length;
     const phones = nodes.filter((n) => n.data.type === "PhoneNumber").length;
     const accounts = nodes.filter((n) => n.data.type === "BankAccount").length;
-    return { persons, phones, accounts, totalNodes: nodes.length, totalEdges: edges.length };
+    const keySuspectNode = nodes.find((n) => n.data.isKeySuspect) || nodes.find((n) => n.data.type === "Person");
+    const keySuspectName = keySuspectNode ? String(keySuspectNode.data.name || keySuspectNode.data.label) : "None";
+    
+    const clusterSet = new Set(nodes.map((n) => n.data.cluster).filter(Boolean));
+    const totalCommunities = clusterSet.size;
+
+    return {
+      persons,
+      phones,
+      accounts,
+      totalNodes: nodes.length,
+      totalEdges: edges.length,
+      keySuspectName,
+      totalCommunities
+    };
   }, [elements]);
 
   return (
-    <div className="flex flex-col h-full bg-[#0c1427]/90 border border-slate-800/80 rounded-xl p-3.5 shadow-sm relative overflow-hidden font-sans">
-      {/* Top Header (Step 5: Split ambiguous entities into clean Nodes · Relationships label) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800/80">
-        <div className="flex items-center gap-2">
-          <Network className="w-4 h-4 text-blue-400" />
-          <h2 className="text-xs font-bold tracking-wide text-white uppercase">
-            Criminal Syndicate Network Topology
-          </h2>
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-400">
-            {stats.totalNodes > 0
-              ? `${stats.totalNodes} NODES · ${stats.totalEdges} RELATIONSHIPS`
-              : "AWAITING INTAKE"}
-          </span>
-        </div>
-
-        {/* Controls Toolbar */}
-        <div className="flex items-center gap-2">
-          {/* Layout Selector */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-md px-1.5 py-0.5 text-xs text-slate-300">
-            <Layers className="w-3 h-3 text-slate-400 mr-1" />
-            <select
-              value={layoutName}
-              onChange={(e) => setLayoutName(e.target.value)}
-              className="bg-transparent text-[11px] text-slate-200 outline-none cursor-pointer"
-            >
-              <option value="fcose" className="bg-slate-900">Compound Force-Directed (fCoSE)</option>
-              <option value="breadthfirst" className="bg-slate-900">Hierarchical Flow</option>
-              <option value="concentric" className="bg-slate-900">Concentric Threat</option>
-              <option value="circle" className="bg-slate-900">Circular Ring</option>
-              <option value="grid" className="bg-slate-900">Grid View</option>
-            </select>
-          </div>
-
-          {/* Sync / Refresh Button */}
-          <button
-            onClick={() => fetchLiveGraph(false)}
-            disabled={isLoadingGraph}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 active:scale-95 text-xs font-medium text-slate-200 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-            title="Fetch and sync live graph from Neo4j"
-          >
-            <RefreshCw className={`w-3 h-3 ${isLoadingGraph ? "animate-spin text-blue-400" : ""}`} />
-            <span>Sync</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Filter / Search HUD Bar */}
-      <div className="flex items-center justify-between gap-2 py-1.5 px-2.5 mt-2 rounded-lg bg-[#080d1a] border border-slate-800/80 text-xs">
+    <div
+      ref={panelRef}
+      className={`flex flex-col bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative font-sans transition-all duration-300 ${
+        isFullscreen
+          ? "fixed inset-0 z-[100] w-screen h-screen rounded-none p-5 bg-[#f5f7fa]"
+          : "h-full"
+      }`}
+    >
+      {/* Top Filter & Controls Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
         {/* Search Input */}
-        <div className="flex items-center gap-1.5 flex-1 max-w-xs">
-          <Search className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+          <Search className="w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Filter entities (e.g. Vikram, 98765...)"
+            placeholder="Search suspects, phone lines, accounts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent border-none outline-none text-xs text-slate-200 placeholder:text-slate-500 w-full"
+            className="bg-transparent border-none outline-none text-xs text-slate-800 placeholder:text-slate-400 w-full font-medium"
           />
         </div>
 
         {/* Quick Filter Badges */}
-        <div className="flex items-center gap-1 text-[11px] font-medium">
+        <div className="flex items-center gap-1.5 text-xs font-semibold">
           <button
             onClick={() => setFilterType("ALL")}
-            className={`px-2 py-0.5 rounded transition-colors ${
+            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
               filterType === "ALL"
-                ? "bg-slate-700 text-white font-semibold"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
             }`}
           >
-            ALL ({stats.totalNodes})
+            All ({stats.totalNodes})
           </button>
           <button
             onClick={() => setFilterType("Person")}
-            className={`px-2 py-0.5 rounded transition-colors ${
+            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
               filterType === "Person"
-                ? "bg-blue-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-blue-700 text-white shadow-xs"
+                : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
             }`}
           >
-            PERSONS ({stats.persons})
+            Persons ({stats.persons})
           </button>
           <button
             onClick={() => setFilterType("PhoneNumber")}
-            className={`px-2 py-0.5 rounded transition-colors ${
+            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
               filterType === "PhoneNumber"
-                ? "bg-emerald-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100"
             }`}
           >
-            PHONES ({stats.phones})
+            Phones ({stats.phones})
           </button>
           <button
             onClick={() => setFilterType("BankAccount")}
-            className={`px-2 py-0.5 rounded transition-colors ${
+            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
               filterType === "BankAccount"
-                ? "bg-purple-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
             }`}
           >
-            ACCOUNTS ({stats.accounts})
+            Accounts ({stats.accounts})
+          </button>
+        </div>
+
+        {/* Layout Switcher & Action Controls */}
+        <div className="flex items-center gap-2">
+          {/* Layout Selector */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-700 shadow-2xs">
+            <Layers className="w-3.5 h-3.5 text-slate-500 mr-1.5" />
+            <select
+              value={layoutName}
+              onChange={(e) => setLayoutName(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+            >
+              <option value="fcose">Force-Directed (Spacious)</option>
+              <option value="concentric">Concentric Hierarchy (Key Orbit)</option>
+              <option value="circle">Circular Cell Cluster</option>
+              <option value="breadthfirst">Top-Down Directed Flow</option>
+              <option value="grid">Structured Matrix</option>
+            </select>
+          </div>
+
+          {/* Sync Button */}
+          <button
+            onClick={() => fetchLiveGraph(false)}
+            disabled={isLoadingGraph}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white active:scale-95 text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            title="Fetch and sync live graph from Neo4j"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingGraph ? "animate-spin" : ""}`} />
+            <span>Sync</span>
+          </button>
+
+          {/* Fullscreen Toggle Button */}
+          <button
+            onClick={handleToggleFullscreen}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-xs ${
+              isFullscreen
+                ? "bg-slate-900 text-white border-slate-900"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title={isFullscreen ? "Exit Fullscreen (ESC)" : "Expand Graph Fullscreen"}
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5 text-amber-300" />
+                <span>Exit Fullscreen</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5 text-blue-600" />
+                <span>Fullscreen</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Main Enterprise Canvas Area */}
-      <div className="relative flex-1 mt-2 rounded-lg border border-slate-800 bg-[#080d1a] overflow-hidden enterprise-grid">
-        {/* Permanent Cytoscape Canvas Container */}
+      {/* Main Canvas Area (Centerpiece of the Screen) */}
+      <div className="relative flex-1 mt-3 rounded-xl border border-slate-200 bg-[#fafcff] overflow-hidden enterprise-grid-light shadow-xs">
+        {/* Subtle India Map Silhouette & Geographic Intelligence Watermark */}
+        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-[0.055] select-none">
+          <svg
+            viewBox="0 0 600 700"
+            className="w-full h-full max-w-[620px] max-h-[680px] text-slate-900"
+            fill="currentColor"
+          >
+            {/* Stylized National Grid Outline of India */}
+            <path
+              d="M 285 45 C 290 55, 305 60, 310 75 C 315 90, 330 95, 335 110 C 340 125, 360 135, 370 150 C 385 165, 410 170, 420 185 C 430 200, 445 205, 455 220 C 465 240, 480 250, 470 270 C 460 285, 435 290, 430 305 C 420 325, 400 340, 395 360 C 390 380, 385 400, 375 420 C 365 440, 350 460, 340 480 C 330 500, 320 520, 310 540 C 300 560, 290 580, 285 600 C 280 610, 275 620, 270 610 C 265 590, 255 565, 245 540 C 235 515, 220 490, 210 465 C 200 440, 190 415, 185 390 C 180 365, 175 340, 170 315 C 165 290, 155 270, 150 250 C 145 230, 150 210, 160 195 C 175 180, 195 170, 210 155 C 225 140, 240 120, 250 100 C 260 80, 275 60, 285 45 Z"
+              stroke="#0f172a"
+              strokeWidth="2"
+              fillOpacity="0.8"
+            />
+          </svg>
+        </div>
+
+        {/* Geographic Reference Radar Grid & Regional Markers (Synthetic Context) */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
+          {/* Delhi NCR Node */}
+          <div className="absolute top-[28%] left-[45%] flex items-center gap-1.5 opacity-35">
+            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
+            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
+              DELHI NCR
+            </span>
+          </div>
+
+          {/* Mumbai Node */}
+          <div className="absolute top-[52%] left-[34%] flex items-center gap-1.5 opacity-35">
+            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
+            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
+              MUMBAI
+            </span>
+          </div>
+
+          {/* Lucknow / Bareilly Node */}
+          <div className="absolute top-[33%] left-[53%] flex items-center gap-1.5 opacity-35">
+            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
+            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
+              LUCKNOW • BAREILLY
+            </span>
+          </div>
+
+          {/* Hyderabad Node */}
+          <div className="absolute top-[58%] left-[46%] flex items-center gap-1.5 opacity-35">
+            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
+            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
+              HYDERABAD
+            </span>
+          </div>
+
+          {/* Bengaluru Node */}
+          <div className="absolute top-[70%] left-[44%] flex items-center gap-1.5 opacity-35">
+            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
+            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
+              BENGALURU
+            </span>
+          </div>
+
+          {/* Grid Latitude / Longitude lines watermark */}
+          <div className="absolute bottom-2.5 left-3 text-[9px] font-mono text-slate-400 opacity-60">
+            GEO-INT REFERENCE GRID // 78°00'E 22°00'N • SYNTHETIC TOPOLOGY
+          </div>
+        </div>
+
+        {/* Permanent Cytoscape Canvas */}
         <div
           ref={containerRef}
           className="w-full h-full absolute inset-0 z-0"
@@ -703,148 +1068,141 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
 
         {/* Loading Overlay */}
         {isLoadingGraph && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#080d1a]/80 backdrop-blur-xs text-slate-400 gap-2">
-            <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-            <span className="text-xs text-slate-300 font-medium">QUERYING NEO4J GRAPH TOPOLOGY...</span>
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/85 backdrop-blur-xs text-slate-700 gap-2.5">
+            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+            <span className="text-xs text-slate-900 font-extrabold tracking-wide uppercase">
+              Computing Dynamic Syndicate Topology &amp; Modularity...
+            </span>
           </div>
         )}
 
         {/* Empty State Overlay */}
         {!isLoadingGraph && elements.length === 0 && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-400 gap-3 text-center p-6 bg-[#080d1a]">
-            <div className="w-14 h-14 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-amber-500 shadow-inner">
-              <Radio className="w-7 h-7 animate-pulse text-amber-500" />
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-600 gap-3 text-center p-6 bg-slate-50/95">
+            <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-blue-600 shadow-md">
+              <Radio className="w-7 h-7 animate-pulse text-blue-600" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-200">
+              <h3 className="text-base font-bold text-slate-900">
                 Awaiting Evidence Ingestion
               </h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                Please upload case files (CDR Logs, Bank Transactions, or FIR) in the left panel to generate the intelligence graph.
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                Upload CDR logs, Bank transactions CSV, or FIR case dossiers to generate the interactive criminal syndicate graph.
               </p>
             </div>
             <button
               onClick={() => fetchLiveGraph(false)}
-              className="mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition-all cursor-pointer"
+              className="mt-1 flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
-              <span>Sync Existing Database Records</span>
+              <RefreshCw className="w-4 h-4" />
+              <span>Load Active Database Graph</span>
             </button>
           </div>
         )}
 
-        {/* Floating Zoom & Fit Controls */}
+        {/* Floating Zoom & Layout Floating Controls */}
         {elements.length > 0 && (
-          <div className="absolute top-2.5 right-2.5 flex flex-col gap-1 p-1 rounded-md bg-slate-900 border border-slate-700 shadow-md z-10">
+          <div className="absolute top-3 right-3 flex flex-col gap-1 p-1 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg z-10">
             <button
               onClick={handleZoomIn}
-              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer"
               title="Zoom In"
             >
-              <ZoomIn className="w-3.5 h-3.5" />
+              <ZoomIn className="w-4 h-4" />
             </button>
             <button
               onClick={handleZoomOut}
-              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer"
               title="Zoom Out"
             >
-              <ZoomOut className="w-3.5 h-3.5" />
+              <ZoomOut className="w-4 h-4" />
             </button>
             <button
               onClick={handleFit}
-              className="p-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer"
               title="Fit to Screen"
             >
-              <Maximize2 className="w-3.5 h-3.5" />
+              <Focus className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleResetFocus}
+              className="p-1.5 rounded-lg text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Reset Focus / Show All Nodes"
+            >
+              <Eye className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* Floating Formal Legend with Cluster Color Badges */}
-        {elements.length > 0 && (
-          <div className="absolute bottom-2.5 left-2.5 p-2 rounded-lg bg-slate-900/95 border border-slate-700 shadow-lg text-[10px] text-slate-300 z-10 space-y-1.5">
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-1 font-semibold text-slate-200">
-              <span>Entity Shapes:</span>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" />
-                <span className="text-slate-400 font-normal">Person</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-slate-400 inline-block" />
-                <span className="text-slate-400 font-normal">Phone</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-slate-400 inline-block rotate-45" />
-                <span className="text-slate-400 font-normal">Account</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 font-medium">
-              <span className="text-slate-400 font-semibold">Syndicate Cells:</span>
-              <div className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-                <span>Cell 0</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                <span>Cell 1</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                <span>Cell 2</span>
-              </div>
-              <div className="flex items-center gap-1 ml-1 pl-1 border-l border-slate-800">
-                <span className="w-3 h-0.5 bg-orange-500 inline-block" />
-                <span className="text-orange-300">Inter-Cell Bridge</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Floating Entity Inspector */}
+        {/* Floating Entity Dossier Inspector */}
         {selectedItem && (
-          <div className="absolute top-2.5 left-2.5 max-w-[260px] w-full p-3 rounded-lg bg-slate-900 border border-slate-700 shadow-xl z-20">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-              <div className="flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-[11px] font-bold text-slate-200 uppercase">
+          <div className="absolute top-3 left-3 max-w-[310px] w-full p-4 rounded-2xl bg-white/98 backdrop-blur-md border border-slate-200 shadow-2xl z-20 font-sans animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700">
+                  <Info className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-black text-slate-900 uppercase tracking-wide">
                   {selectedItem.type === "node" ? "Entity Dossier" : "Relationship Dossier"}
                 </span>
               </div>
-              <button
-                onClick={() => setSelectedItem(null)}
-                className="text-slate-400 hover:text-white text-xs px-1 cursor-pointer"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleCopyInspector}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+                  title="Copy Details JSON"
+                >
+                  {copiedText ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedItem(null);
+                    if (cyRef.current && !cyRef.current.destroyed()) {
+                      cyRef.current.elements().removeClass("dimmed");
+                    }
+                  }}
+                  className="text-slate-400 hover:text-slate-800 text-sm px-1.5 py-0.5 rounded-md hover:bg-slate-100 cursor-pointer font-bold"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            <div className="mt-2 space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Identifier:</span>
-                <span className="text-slate-100 font-semibold truncate max-w-[130px]">
+            <div className="mt-3 space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500 font-medium">Identifier:</span>
+                <span className="text-slate-900 font-bold truncate max-w-[170px]">
                   {selectedItem.data.label || selectedItem.data.id}
                 </span>
               </div>
               {selectedItem.data.cluster !== undefined && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Syndicate Cell:</span>
-                  <span className="text-blue-400 font-bold">
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Syndicate Group:</span>
+                  <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-md text-[11px]">
                     {selectedItem.data.cluster === "unclustered"
                       ? "Unassigned"
-                      : `Cell ${selectedItem.data.cluster}`}
+                      : `Group ${String.fromCharCode(65 + (parseInt(selectedItem.data.cluster) || 0))}`}
                   </span>
                 </div>
               )}
               {selectedItem.data.type && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Class:</span>
-                  <span className="text-slate-300">{selectedItem.data.type}</span>
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Entity Type:</span>
+                  <span className="text-slate-800 font-semibold">{selectedItem.data.type}</span>
+                </div>
+              )}
+              {selectedItem.data.isKeySuspect && (
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Threat Level:</span>
+                  <span className="text-white font-bold bg-rose-600 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide">
+                    KEY SUSPECT / LEAD
+                  </span>
                 </div>
               )}
               {selectedItem.data.aliases && selectedItem.data.aliases.length > 0 && (
-                <div className="flex flex-col gap-0.5 pt-1 border-t border-slate-800">
-                  <span className="text-slate-400">Resolved Aliases:</span>
-                  <span className="text-amber-300 font-mono text-[10px] break-words">
+                <div className="flex flex-col gap-1 py-1 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Resolved Aliases:</span>
+                  <span className="text-amber-900 font-mono text-[11px] bg-amber-50 p-1.5 rounded-md border border-amber-200/60 break-words">
                     {Array.isArray(selectedItem.data.aliases)
                       ? selectedItem.data.aliases.join(", ")
                       : selectedItem.data.aliases}
@@ -852,66 +1210,24 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
                 </div>
               )}
               {selectedItem.data.role && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Suspect Role:</span>
-                  <span className="text-rose-400 font-bold">{selectedItem.data.role}</span>
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-500 font-medium">Assigned Role:</span>
+                  <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded text-[11px]">
+                    {selectedItem.data.role}
+                  </span>
                 </div>
               )}
-              {selectedItem.data.carrier && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Telecom:</span>
-                  <span className="text-emerald-400 font-medium">{selectedItem.data.carrier}</span>
-                </div>
-              )}
-              {selectedItem.data.bank_name && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Bank:</span>
-                  <span className="text-purple-400 font-medium">{selectedItem.data.bank_name}</span>
-                </div>
-              )}
-              {selectedItem.data.duration && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Call Duration:</span>
-                  <span className="text-slate-200 font-mono">{selectedItem.data.duration}s</span>
-                </div>
-              )}
-              {selectedItem.data.amount && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Amount:</span>
-                  <span className="text-rose-400 font-bold">₹{Number(selectedItem.data.amount).toLocaleString()}</span>
-                </div>
-              )}
-              {selectedItem.data.timestamp && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Timestamp:</span>
-                  <span className="text-slate-400 font-mono text-[10px]">{selectedItem.data.timestamp}</span>
+              {selectedItem.data.degree !== undefined && (
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-500 font-medium">Degree Centrality:</span>
+                  <span className="text-slate-900 font-bold font-mono">
+                    {selectedItem.data.degree} connections
+                  </span>
                 </div>
               )}
             </div>
           </div>
         )}
-      </div>
-
-      {/* Network Bottom Summary */}
-      <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
-            <Users className="w-3 h-3 text-blue-400" />
-            <span>{stats.persons} Persons</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <Phone className="w-3 h-3 text-emerald-400" />
-            <span>{stats.phones} Phones</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <CreditCard className="w-3 h-3 text-purple-400" />
-            <span>{stats.accounts} Accounts</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 text-slate-300 font-medium">
-          <ArrowRightLeft className="w-3 h-3 text-amber-500" />
-          <span>{stats.totalEdges} Linked Edges</span>
-        </div>
       </div>
     </div>
   );

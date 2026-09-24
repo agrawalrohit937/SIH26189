@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
-from fastapi import FastAPI, HTTPException, status, Query
+from fastapi import FastAPI, HTTPException, status, Query, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -14,7 +14,6 @@ from services.graph_intelligence import detect_smurfing_patterns
 from services.entity_resolution import resolve_person_entities
 from services.cluster_sync import sync_cluster_ids_from_ground_truth
 from ai_agent import chat_with_copilot
-
 
 
 # Configure Logging
@@ -114,22 +113,41 @@ def root():
 
 
 @app.post("/api/v1/ingest/csv", response_model=GenericResponse, tags=["Data Ingestion"])
-def trigger_csv_ingestion(
-    cdr_file: Optional[str] = Query(None, description="Path to CDR logs CSV file"),
-    bank_file: Optional[str] = Query(None, description="Path to Bank transactions CSV file")
+async def trigger_csv_ingestion(
+    cdr_file: Optional[UploadFile] = File(None, description="Uploaded CDR logs CSV file"),
+    bank_file: Optional[UploadFile] = File(None, description="Uploaded Bank transactions CSV file"),
+    cdr_file_path: Optional[str] = Query(None, description="Path to CDR logs CSV file on disk"),
+    bank_file_path: Optional[str] = Query(None, description="Path to Bank transactions CSV file on disk")
 ):
     """
-    Triggers batch ingestion of structured CDR logs and Bank transactions into Neo4j.
-    Creates Person, PhoneNumber, BankAccount nodes and CALLED, OWNS_ACCOUNT, TRANSFERRED_TO edges.
+    Triggers ingestion of structured CDR logs and/or Bank transactions into Neo4j.
+    Supports either direct multipart file uploads or file paths on disk.
+    Automatically executes 3-tier entity resolution and dynamic community clustering.
     """
     try:
-        cdr_result = ingest_cdr_data(cdr_file)
-        bank_result = ingest_bank_data(bank_file)
-        
-        # Run entity resolution batch pass after ingestion
+        cdr_result = None
+        bank_result = None
+
+        # 1. Process CDR Logs
+        if cdr_file is not None:
+            content = await cdr_file.read()
+            cdr_result = ingest_cdr_data(content)
+        elif cdr_file_path or (bank_file is None and bank_file_path is None):
+            # Ingest from path or default if nothing specifically passed
+            cdr_result = ingest_cdr_data(cdr_file_path)
+
+        # 2. Process Bank Transactions
+        if bank_file is not None:
+            content = await bank_file.read()
+            bank_result = ingest_bank_data(content)
+        elif bank_file_path or (cdr_file is None and cdr_file_path is None):
+            # Ingest from path or default if nothing specifically passed
+            bank_result = ingest_bank_data(bank_file_path)
+
+        # 3. Run entity resolution pass
         resolution_result = resolve_person_entities()
         
-        # Step 1: Sync ground truth cluster IDs to nodes
+        # 4. Sync dynamic graph cluster assignments
         cluster_result = sync_cluster_ids_from_ground_truth()
 
         return GenericResponse(
@@ -150,15 +168,26 @@ def trigger_csv_ingestion(
 
 
 @app.post("/api/v1/ingest/fir", response_model=GenericResponse, tags=["Unstructured Extraction"])
-def trigger_fir_extraction(
-    file_path: Optional[str] = Query("FIR_Case_992.txt", description="Path to FIR text file")
+async def trigger_fir_extraction(
+    file: Optional[UploadFile] = File(None, description="Uploaded FIR text or document file"),
+    file_path: Optional[str] = Query(None, description="Path to FIR text file on disk"),
+    text: Optional[str] = Form(None, description="Raw FIR text content")
 ):
     """
-    Triggers LLM intelligence extraction from FIR text via Groq (openai/gpt-oss-20b).
+    Triggers intelligence extraction from FIR text.
+    Supports multipart file upload, raw text body, or disk file path.
     Extracts suspects, aliases, phone numbers, and links them into Neo4j with [:OWNS_PHONE] edges.
     """
     try:
-        fir_result = process_fir_text(file_path)
+        fir_result = None
+        if file is not None:
+            content = await file.read()
+            fir_result = process_fir_text(file_source=content)
+        elif text:
+            fir_result = process_fir_text(raw_text=text)
+        else:
+            fir_result = process_fir_text(file_path=file_path or "FIR_Case_992.txt")
+
         resolution_result = resolve_person_entities()
         cluster_result = sync_cluster_ids_from_ground_truth()
         
@@ -202,8 +231,6 @@ def run_entity_resolution_endpoint():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-
-
 @app.get("/api/v1/intelligence/smurfing-alerts", response_model=SmurfingAlertsResponse, tags=["Graph Intelligence"])
 def get_smurfing_alerts():
     """
@@ -244,7 +271,7 @@ def get_graph_topology_endpoint(limit: int = Query(500, description="Max entitie
 @app.post("/api/v1/chat", response_model=ChatResponse, tags=["AI Investigator Copilot"])
 def chat_copilot_endpoint(payload: ChatRequest):
     """
-    Law Enforcement AI Copilot endpoint powered by Groq LLM (openai/gpt-oss-20b).
+    Law Enforcement AI Copilot endpoint powered by Groq LLM with real-time Neo4j graph context.
     Answers tactical investigative queries referencing CDR logs, banking structuring, and crime syndicates.
     """
     try:
@@ -269,7 +296,6 @@ def clear_database_endpoint():
         purge_query = "MATCH (n) DETACH DELETE n"
         db.execute_query(purge_query)
         
-        # Step 1c: Post-purge verification
         result = db.execute_query("MATCH (n) RETURN count(n) AS c")
         node_count = result[0]["c"] if result and len(result) > 0 else 0
         assert node_count == 0, f"Purge failed — {node_count} nodes remain in database"
@@ -277,12 +303,11 @@ def clear_database_endpoint():
         logger.warning(f"Neo4j database purged successfully. Verified {node_count} nodes remaining.")
         return GenericResponse(
             status="success",
-            message=f"Neo4j database purged successfully (verified 0 nodes remaining). Ready for new case evidence ingestion."
+            message="Neo4j database purged successfully (verified 0 nodes remaining). Ready for new case evidence ingestion."
         )
     except Exception as e:
         logger.error(f"Error purging database: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 
 if __name__ == "__main__":
