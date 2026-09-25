@@ -11,5 +11,6 @@ jellyfish>=1.0.0
 networkx>=3.2.0
 faker>=25.0.0
 python-multipart>=0.0.9
-
-
+slowapi>=0.1.9
+pypdf>=4.0.0
+Pillow>=10.0.0

@@ -15,6 +15,7 @@ import {
   Download,
   AlertTriangle
 } from "lucide-react";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface BriefingGeneratorModalProps {
   apiBaseUrl: string;
@@ -191,10 +192,8 @@ export const BriefingGeneratorModal: React.FC<BriefingGeneratorModalProps> = ({
               </p>
             </div>
           ) : (
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-xs text-slate-800 leading-relaxed space-y-4">
-              <pre className="whitespace-pre-wrap font-sans text-xs text-slate-800 leading-relaxed select-text">
-                {briefingMarkdown}
-              </pre>
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-xs text-slate-800 leading-relaxed">
+              <MarkdownContent content={briefingMarkdown} />
             </div>
           )}
         </div>

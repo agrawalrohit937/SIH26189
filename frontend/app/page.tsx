@@ -644,51 +644,6 @@ export default function DashboardPage() {
               }}
             />
           </div>
-
-          {/* Bottom Center 6 Feature Icons Bar */}
-          <div className="relative z-10 w-full bg-white/95 border-t border-slate-200 px-3 py-1.5 grid grid-cols-6 gap-1 shrink-0 text-center font-sans">
-            {/* Feature 1: Entity Resolution */}
-            <div className="flex flex-col items-center justify-center p-1 rounded hover:bg-slate-50 transition-colors">
-              <Fingerprint className="w-3.5 h-3.5 text-blue-600 mb-0.5" />
-              <span className="text-[9px] font-bold text-slate-800 leading-tight">Entity Resolution</span>
-              <span className="text-[7px] text-slate-500 leading-none">Hybrid DSU</span>
-            </div>
-
-            {/* Feature 2: Community Detection */}
-            <div className="flex flex-col items-center justify-center p-1 rounded hover:bg-slate-50 transition-colors">
-              <Layers className="w-3.5 h-3.5 text-purple-600 mb-0.5" />
-              <span className="text-[9px] font-bold text-slate-800 leading-tight">Communities</span>
-              <span className="text-[7px] text-slate-500 leading-none">Louvain Modular</span>
-            </div>
-
-            {/* Feature 3: Cross-Cluster Links */}
-            <div className="flex flex-col items-center justify-center p-1 rounded hover:bg-slate-50 transition-colors">
-              <Share2 className="w-3.5 h-3.5 text-rose-600 mb-0.5" />
-              <span className="text-[9px] font-bold text-slate-800 leading-tight">Bridge Links</span>
-              <span className="text-[7px] text-slate-500 leading-none">Crimson Dashed</span>
-            </div>
-
-            {/* Feature 4: Financial Evasion */}
-            <div className="flex flex-col items-center justify-center p-1 rounded hover:bg-slate-50 transition-colors">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-600 mb-0.5" />
-              <span className="text-[9px] font-bold text-slate-800 leading-tight">AML Structuring</span>
-              <span className="text-[7px] text-slate-500 leading-none">Smurfing Traversal</span>
-            </div>
-
-            {/* Feature 5: GAT Link Prediction */}
-            <div className="flex flex-col items-center justify-center p-1 rounded hover:bg-slate-50 transition-colors">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 mb-0.5" />
-              <span className="text-[9px] font-bold text-slate-800 leading-tight">GAT Link AI</span>
-              <span className="text-[7px] text-slate-500 leading-none">Active Feedback</span>
-            </div>
-
-            {/* Feature 6: Graph-RAG Copilot */}
-            <div className="flex flex-col items-center justify-center p-1 rounded hover:bg-slate-50 transition-colors">
-              <Bot className="w-3.5 h-3.5 text-emerald-600 mb-0.5" />
-              <span className="text-[9px] font-bold text-slate-800 leading-tight">AI Copilot</span>
-              <span className="text-[7px] text-slate-500 leading-none">Grounded RAG</span>
-            </div>
-          </div>
         </div>
 
         {/* ========================================================================= */}

@@ -15,9 +15,14 @@ import {
   Zap,
   Sparkles,
   MessageSquare,
+  Copy,
+  Check,
+  Expand,
+  Shrink,
   ShieldAlert,
   ChevronRight
 } from "lucide-react";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface ChatMessage {
   id: string;
@@ -40,9 +45,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export const CopilotChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -51,7 +58,7 @@ export const CopilotChat: React.FC = () => {
     {
       id: "msg-welcome",
       sender: "ai",
-      text: "National Crime Intelligence Copilot online. You can query case entities, CDR telecom frequencies, bank structuring evasion, or suspect alias resolutions.",
+      text: "**National Crime Intelligence Copilot Online**\n\nI am grounded in your active **Neo4j Knowledge Graph**, **FIR Case Dossiers**, and **Financial / Telecom Records**.\n\nYou can query suspect alias linkages, syndicate modularity, cross-cluster bridge links, or money trails.",
       timestamp: "",
     },
   ]);
@@ -124,7 +131,7 @@ export const CopilotChat: React.FC = () => {
       const errorAiMsg: ChatMessage = {
         id: `ai-err-${Date.now()}`,
         sender: "ai",
-        text: `[SYSTEM NOTICE: MHA Copilot Offline]\n${errorMsg}\n\nPlease ensure the FastAPI backend is running and GROQ_API_KEY is configured in backend environment variables.`,
+        text: `### [SYSTEM NOTICE: MHA Copilot Offline]\n\n${errorMsg}\n\n*Please ensure the FastAPI backend is running and GROQ_API_KEY is configured in backend environment variables.*`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -132,6 +139,13 @@ export const CopilotChat: React.FC = () => {
     } finally {
       setIsThinking(false);
     }
+  };
+
+  const handleCopyMessage = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    toast.success("Briefing copied to clipboard");
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -146,7 +160,7 @@ export const CopilotChat: React.FC = () => {
       {
         id: `msg-reset-${Date.now()}`,
         sender: "ai",
-        text: "Briefing history cleared. Ready for new investigative queries.",
+        text: "### Briefing Session Reset\n\nInvestigative history cleared. Ready for new queries.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       },
     ]);
@@ -157,15 +171,19 @@ export const CopilotChat: React.FC = () => {
       {/* Floating Chat Window */}
       {isOpen && (
         <div
-          className={`pointer-events-auto mb-3 w-[360px] sm:w-[400px] rounded-2xl bg-white border border-slate-200 shadow-2xl flex flex-col transition-all duration-300 overflow-hidden ${
-            isMinimized ? "h-[56px]" : "h-[520px]"
+          className={`pointer-events-auto mb-3 rounded-2xl bg-white border border-slate-300 shadow-2xl flex flex-col transition-all duration-300 overflow-hidden ${
+            isMinimized
+              ? "h-[56px] w-[340px]"
+              : isExpanded
+              ? "h-[640px] w-[95vw] sm:w-[680px] max-w-[720px]"
+              : "h-[540px] w-[95vw] sm:w-[480px] max-w-[500px]"
           }`}
         >
           {/* Modern Institutional Window Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#0a2540] via-[#0f3460] to-[#0a2540] text-white border-b border-[#1e3a66]/50">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#07172C] via-[#0A2540] to-[#0D2E54] text-white border-b border-[#142944] shadow-xs">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center text-white shadow-inner shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 border border-white/20 flex items-center justify-center text-white shadow-sm shrink-0">
+                <Bot className="w-4 h-4 text-amber-300" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
@@ -174,31 +192,38 @@ export const CopilotChat: React.FC = () => {
                   </h3>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 </div>
-                <p className="text-[10px] text-blue-200 font-medium">National Crime Intelligence Assistant</p>
+                <p className="text-[10px] text-blue-200/80 font-medium">National Crime Intelligence Assistant (MHA)</p>
               </div>
             </div>
 
             <div className="flex items-center gap-1 text-blue-200">
               <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                title={isExpanded ? "Standard Width" : "Expand Table View"}
+              >
+                {isExpanded ? <Shrink className="w-3.5 h-3.5 text-amber-300" /> : <Expand className="w-3.5 h-3.5" />}
+              </button>
+              <button
                 onClick={handleClearHistory}
-                className="p-1 hover:text-white hover:bg-white/15 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 title="Clear Chat History"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="p-1 hover:text-white hover:bg-white/15 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 title={isMinimized ? "Expand" : "Minimize"}
               >
                 {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1 hover:text-rose-300 hover:bg-rose-900/40 rounded-lg transition-colors cursor-pointer font-bold"
+                className="p-1.5 hover:text-rose-300 hover:bg-rose-900/40 rounded-lg transition-colors cursor-pointer font-bold ml-0.5"
                 title="Close"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -207,7 +232,7 @@ export const CopilotChat: React.FC = () => {
           {!isMinimized && (
             <>
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs bg-[#f8fafc]">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs bg-[#F8FAFC]">
                 {mounted &&
                   messages.map((msg) => {
                     const isAi = msg.sender === "ai";
@@ -219,28 +244,59 @@ export const CopilotChat: React.FC = () => {
                         }`}
                       >
                         {isAi && (
-                          <div className="w-6 h-6 rounded-lg bg-[#0a2540] border border-blue-900/40 flex items-center justify-center text-amber-300 shrink-0 mt-0.5 shadow-2xs">
-                            <Bot className="w-3.5 h-3.5" />
+                          <div className="w-7 h-7 rounded-xl bg-[#0A2540] border border-blue-900/50 flex items-center justify-center text-amber-300 shrink-0 mt-0.5 shadow-xs">
+                            <Bot className="w-4 h-4" />
                           </div>
                         )}
 
                         <div
-                          className={`max-w-[85%] rounded-2xl p-3 shadow-2xs ${
+                          className={`rounded-2xl p-3.5 shadow-xs transition-all ${
                             isAi
-                              ? "bg-white border border-slate-200/90 text-slate-800 rounded-tl-sm"
-                              : "bg-blue-600 border border-blue-700 text-white font-medium rounded-tr-sm"
+                              ? "bg-white border border-slate-200/90 text-slate-800 rounded-tl-xs w-full max-w-[92%]"
+                              : "bg-blue-600 border border-blue-700 text-white font-medium rounded-tr-xs max-w-[85%]"
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2 text-[10px] mb-1 opacity-75 font-semibold">
-                            <span>{isAi ? "AI COPILOT" : "OFFICER"}</span>
-                            <span suppressHydrationWarning className="font-mono text-[9px] font-normal">{msg.timestamp}</span>
+                          <div className="flex items-center justify-between gap-2 text-[10px] mb-1.5 opacity-80 font-bold border-b border-slate-100 pb-1">
+                            <span className={isAi ? "text-blue-900 flex items-center gap-1" : "text-blue-100"}>
+                              {isAi ? (
+                                <>
+                                  <Sparkles className="w-3 h-3 text-amber-500" />
+                                  AI COPILOT VERIFIED REPORT
+                                </>
+                              ) : (
+                                "INVESTIGATING OFFICER"
+                              )}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span suppressHydrationWarning className="font-mono text-[9.5px] font-normal opacity-75">
+                                {msg.timestamp}
+                              </span>
+                              {isAi && (
+                                <button
+                                  onClick={() => handleCopyMessage(msg.id, msg.text)}
+                                  className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                  title="Copy Report Markdown"
+                                >
+                                  {copiedId === msg.id ? (
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <p className="leading-relaxed text-[11px] whitespace-pre-wrap">{msg.text}</p>
+
+                          {isAi ? (
+                            <MarkdownContent content={msg.text} isAi={true} />
+                          ) : (
+                            <p className="leading-relaxed text-[11.5px] whitespace-pre-wrap">{msg.text}</p>
+                          )}
                         </div>
 
                         {!isAi && (
-                          <div className="w-6 h-6 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0 mt-0.5 shadow-2xs">
-                            <User className="w-3.5 h-3.5" />
+                          <div className="w-7 h-7 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0 mt-0.5 shadow-xs">
+                            <User className="w-4 h-4" />
                           </div>
                         )}
                       </div>
@@ -250,14 +306,15 @@ export const CopilotChat: React.FC = () => {
                 {/* Live Analyzing Indicator */}
                 {isThinking && (
                   <div className="flex items-start gap-2.5">
-                    <div className="w-6 h-6 rounded-lg bg-[#0a2540] border border-blue-900/40 flex items-center justify-center text-amber-300 shrink-0 mt-0.5 shadow-2xs">
-                      <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                    <div className="w-7 h-7 rounded-xl bg-[#0A2540] border border-blue-900/50 flex items-center justify-center text-amber-300 shrink-0 mt-0.5 shadow-xs">
+                      <Sparkles className="w-4 h-4 animate-spin" />
                     </div>
-                    <div className="rounded-2xl p-3 bg-white border border-slate-200 text-slate-700 flex items-center gap-2 shadow-2xs rounded-tl-sm">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-                      <span className="text-[11px] font-semibold text-slate-600">
-                        Analyzing active case evidence...
-                      </span>
+                    <div className="rounded-2xl p-3 bg-white border border-slate-200 text-slate-700 flex items-center gap-2.5 shadow-xs rounded-tl-xs">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      <div className="text-[11px]">
+                        <span className="font-extrabold text-slate-800">Synthesizing Verified Investigation Dossier...</span>
+                        <span className="block text-[9.5px] text-slate-400 font-medium">Querying Neo4j Graph + Ingested FIR Paraphrases</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -266,8 +323,8 @@ export const CopilotChat: React.FC = () => {
               </div>
 
               {/* Quick Inquiry Chips */}
-              <div className="px-3 py-2 border-t border-slate-200 bg-white overflow-x-auto flex items-center gap-1.5 text-[10px]">
-                <span className="text-slate-500 shrink-0 flex items-center gap-0.5 font-bold">
+              <div className="px-3 py-2 border-t border-slate-200 bg-white overflow-x-auto flex items-center gap-1.5 text-[10.5px]">
+                <span className="text-slate-500 shrink-0 flex items-center gap-0.5 font-extrabold">
                   <Zap className="w-3 h-3 text-amber-500" />
                   Quick:
                 </span>
@@ -276,7 +333,7 @@ export const CopilotChat: React.FC = () => {
                     key={i}
                     onClick={() => handleSendMessage(chip)}
                     disabled={isThinking}
-                    className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 font-medium transition-colors cursor-pointer disabled:opacity-40"
+                    className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 font-semibold transition-colors cursor-pointer disabled:opacity-40"
                   >
                     {chip}
                   </button>
@@ -293,12 +350,12 @@ export const CopilotChat: React.FC = () => {
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={isThinking}
-                  className="flex-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all disabled:opacity-60 font-medium"
+                  className="flex-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all disabled:opacity-60 font-medium"
                 />
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={!inputMessage.trim() || isThinking}
-                  className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-bold transition-all cursor-pointer shadow-xs shrink-0"
+                  className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-bold transition-all cursor-pointer shadow-xs shrink-0"
                   title="Send Query (Enter)"
                 >
                   <Send className="w-4 h-4" />
