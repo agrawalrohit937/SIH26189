@@ -27,7 +27,13 @@ import {
   ShieldAlert,
   Sparkles,
   Eye,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Database,
+  Calendar,
+  Link2,
+  Share2,
+  BarChart3,
+  Bot
 } from "lucide-react";
 import cytoscape, { Core, ElementDefinition } from "cytoscape";
 import fcose from "cytoscape-fcose";
@@ -1027,197 +1033,193 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           : "h-full min-h-0"
       }`}
     >
-      {/* Top Filter & Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 shrink-0">
-        {/* Search Input */}
-        <div className="flex items-center gap-1.5 flex-1 min-w-[170px] max-w-xs bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
-          <Search className="w-3.5 h-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search suspects, phone lines, accounts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent border-none outline-none text-xs text-slate-800 placeholder:text-slate-400 w-full font-medium"
-          />
-        </div>
-
-        {/* Quick Filter Badges */}
-        <div className="flex items-center gap-1 text-xs font-semibold">
-          <button
-            onClick={() => setFilterType("ALL")}
-            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
-              filterType === "ALL"
-                ? "bg-slate-900 text-white shadow-xs"
-                : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
-            }`}
-          >
-            All ({stats.totalNodes})
-          </button>
-          <button
-            onClick={() => setFilterType("Person")}
-            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
-              filterType === "Person"
-                ? "bg-blue-700 text-white shadow-xs"
-                : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
-            }`}
-          >
-            Persons ({stats.persons})
-          </button>
-          <button
-            onClick={() => setFilterType("PhoneNumber")}
-            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
-              filterType === "PhoneNumber"
-                ? "bg-emerald-600 text-white shadow-xs"
-                : "bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100"
-            }`}
-          >
-            Phones ({stats.phones})
-          </button>
-          <button
-            onClick={() => setFilterType("BankAccount")}
-            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
-              filterType === "BankAccount"
-                ? "bg-blue-600 text-white shadow-xs"
-                : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
-            }`}
-          >
-            Accounts ({stats.accounts})
-          </button>
-        </div>
-
-        {/* Layout Switcher & Action Controls */}
-        <div className="flex items-center gap-1.5">
-          {/* Layout Selector */}
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-xs text-slate-700 shadow-2xs">
-            <Layers className="w-3 h-3 text-slate-500 mr-1" />
-            <select
-              value={layoutName}
-              onChange={(e) => setLayoutName(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
-            >
-              <option value="fcose">Force-Directed (Spacious)</option>
-              <option value="concentric">Concentric (Orbit)</option>
-              <option value="circle">Circular Cell</option>
-              <option value="breadthfirst">Top-Down Flow</option>
-              <option value="grid">Matrix Grid</option>
-            </select>
+      {/* 1. When live graph is loaded: Show the full Investigation Toolbar */}
+      {elements.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 shrink-0">
+          {/* Search Input */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-[170px] max-w-xs bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+            <Search className="w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search suspects, phone lines, accounts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none text-xs text-slate-800 placeholder:text-slate-400 w-full font-medium"
+            />
           </div>
 
-          {/* Temporal Scrubber Toggle Button */}
-          <button
-            onClick={() => setShowTemporalBar((prev) => !prev)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs ${
-              startDate || endDate
-                ? "bg-amber-600 text-white border-amber-600 shadow-amber-200"
-                : showTemporalBar
-                ? "bg-slate-100 text-slate-800 border-slate-300"
-                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-            }`}
-            title="Toggle Date-Range Temporal Scrubber"
-          >
-            <SlidersHorizontal className="w-3 h-3 text-amber-500" />
-            <span>Temporal {startDate || endDate ? "(Active)" : ""}</span>
-          </button>
+          {/* Quick Filter Badges */}
+          <div className="flex items-center gap-1 text-xs font-semibold">
+            <button
+              onClick={() => setFilterType("ALL")}
+              className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
+                filterType === "ALL"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              All ({stats.totalNodes})
+            </button>
+            <button
+              onClick={() => setFilterType("Person")}
+              className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
+                filterType === "Person"
+                  ? "bg-blue-700 text-white shadow-xs"
+                  : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
+              }`}
+            >
+              Persons ({stats.persons})
+            </button>
+            <button
+              onClick={() => setFilterType("PhoneNumber")}
+              className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
+                filterType === "PhoneNumber"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100"
+              }`}
+            >
+              Phones ({stats.phones})
+            </button>
+            <button
+              onClick={() => setFilterType("BankAccount")}
+              className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
+                filterType === "BankAccount"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
+              }`}
+            >
+              Accounts ({stats.accounts})
+            </button>
+          </div>
 
-          {/* Sync Button */}
-          <button
-            onClick={() => fetchLiveGraph(false)}
-            disabled={isLoadingGraph}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white active:scale-95 text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-            title="Fetch and sync live graph from Neo4j"
-          >
-            <RefreshCw className={`w-3 h-3 ${isLoadingGraph ? "animate-spin" : ""}`} />
-            <span>Sync</span>
-          </button>
+          {/* Layout Switcher & Action Controls */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-xs text-slate-700 shadow-2xs">
+              <Layers className="w-3 h-3 text-slate-500 mr-1" />
+              <select
+                value={layoutName}
+                onChange={(e) => setLayoutName(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+              >
+                <option value="fcose">Force-Directed (Spacious)</option>
+                <option value="concentric">Concentric (Orbit)</option>
+                <option value="circle">Circular Cell</option>
+                <option value="breadthfirst">Top-Down Flow</option>
+                <option value="grid">Matrix Grid</option>
+              </select>
+            </div>
 
-          {/* Fullscreen Toggle Button */}
-          <button
-            onClick={handleToggleFullscreen}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs ${
-              isFullscreen
-                ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-            }`}
-            title={isFullscreen ? "Exit Fullscreen (ESC)" : "Expand Graph Fullscreen"}
-          >
-            {isFullscreen ? (
-              <>
-                <Minimize2 className="w-3 h-3 text-amber-300" />
-                <span>Exit Fullscreen</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 className="w-3 h-3 text-blue-600" />
-                <span>Fullscreen</span>
-              </>
-            )}
-          </button>
+            <button
+              onClick={() => setShowTemporalBar((prev) => !prev)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs ${
+                startDate || endDate
+                  ? "bg-amber-600 text-white border-amber-600 shadow-amber-200"
+                  : showTemporalBar
+                  ? "bg-slate-100 text-slate-800 border-slate-300"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+              title="Toggle Date-Range Temporal Scrubber"
+            >
+              <SlidersHorizontal className="w-3 h-3 text-amber-500" />
+              <span>Temporal {startDate || endDate ? "(Active)" : ""}</span>
+            </button>
+
+            <button
+              onClick={() => fetchLiveGraph(false)}
+              disabled={isLoadingGraph}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white active:scale-95 text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              title="Fetch and sync live graph from Neo4j"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoadingGraph ? "animate-spin" : ""}`} />
+              <span>Sync</span>
+            </button>
+
+            <button
+              onClick={handleToggleFullscreen}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs ${
+                isFullscreen
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+              title={isFullscreen ? "Exit Fullscreen (ESC)" : "Expand Graph Fullscreen"}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="w-3 h-3 text-amber-300" />
+                  <span>Exit Fullscreen</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3 h-3 text-blue-600" />
+                  <span>Fullscreen</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Temporal Date-Range Scrubber Bar */}
-      {showTemporalBar && (
-        <div className="mt-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2 border border-slate-800 shadow-xs animate-in fade-in duration-150 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1">
-              <SlidersHorizontal className="w-3 h-3 text-amber-400" />
-              Temporal Filter:
+      {/* 2. Top Dark Navy Temporal Filter Header Bar (Exact match to reference UI) */}
+      {(showTemporalBar || elements.length === 0) && (
+        <div className="px-3.5 py-2 rounded-xl bg-[#07172C] text-white flex flex-wrap items-center justify-between gap-2 border border-[#142944] shadow-md shrink-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#F59E0B] flex items-center gap-1.5">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#F59E0B]" />
+              TEMPORAL FILTER:
             </span>
             <div className="flex items-center gap-1.5 text-xs">
-              <label className="text-[10px] text-slate-400 font-medium">From:</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-white text-xs px-2 py-0.5 rounded outline-none font-mono focus:border-amber-400"
-              />
-              <label className="text-[10px] text-slate-400 font-medium">To:</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-white text-xs px-2 py-0.5 rounded outline-none font-mono focus:border-amber-400"
-              />
+              <span className="text-[11px] text-slate-400 font-medium">From</span>
+              <div className="relative flex items-center bg-[#0D213A] border border-[#1C3A5E] rounded-md px-2 py-0.5 text-xs text-white focus-within:border-[#F59E0B]">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-transparent text-[11px] text-white outline-none font-mono placeholder:text-slate-500 w-[110px] cursor-pointer"
+                />
+                <Calendar className="w-3 h-3 text-slate-400 ml-1 pointer-events-none" />
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium">To</span>
+              <div className="relative flex items-center bg-[#0D213A] border border-[#1C3A5E] rounded-md px-2 py-0.5 text-xs text-white focus-within:border-[#F59E0B]">
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-transparent text-[11px] text-white outline-none font-mono placeholder:text-slate-500 w-[110px] cursor-pointer"
+                />
+                <Calendar className="w-3 h-3 text-slate-400 ml-1 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Quarters */}
+            <div className="flex items-center gap-1">
+              {["Q1 2024", "Q2 2024", "Q3 2024", "Q4 2024"].map((q, idx) => {
+                const dates = [
+                  ["2024-01-01", "2024-03-31"],
+                  ["2024-04-01", "2024-06-30"],
+                  ["2024-07-01", "2024-09-30"],
+                  ["2024-10-01", "2024-12-31"],
+                ][idx];
+                return (
+                  <button
+                    key={q}
+                    onClick={() => {
+                      setStartDate(dates[0]);
+                      setEndDate(dates[1]);
+                      fetchLiveGraph(false, dates[0], dates[1]);
+                    }}
+                    className="px-2.5 py-0.5 rounded-md bg-[#0D213A] hover:bg-[#16355C] text-[10px] font-semibold text-slate-300 border border-[#1C3A5E] transition-colors cursor-pointer"
+                  >
+                    {q}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Quick Preset Buttons & Action Controls */}
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => {
-                setStartDate("2024-01-01");
-                setEndDate("2024-03-31");
-                fetchLiveGraph(false, "2024-01-01", "2024-03-31");
-              }}
-              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-slate-700 cursor-pointer"
-            >
-              Q1 2024
-            </button>
-            <button
-              onClick={() => {
-                setStartDate("2024-04-01");
-                setEndDate("2024-06-30");
-                fetchLiveGraph(false, "2024-04-01", "2024-06-30");
-              }}
-              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-slate-700 cursor-pointer"
-            >
-              Q2 2024
-            </button>
-            <button
-              onClick={() => {
-                setStartDate("2024-07-01");
-                setEndDate("2024-09-30");
-                fetchLiveGraph(false, "2024-07-01", "2024-09-30");
-              }}
-              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-slate-700 cursor-pointer"
-            >
-              Q3 2024
-            </button>
-            <button
-              onClick={() => {
-                fetchLiveGraph(false, startDate, endDate);
-              }}
-              className="px-2.5 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold cursor-pointer transition-colors"
+              onClick={() => fetchLiveGraph(false, startDate, endDate)}
+              className="px-3.5 py-1 rounded-md bg-[#F59E0B] hover:bg-[#D97706] text-[#07172C] text-[11px] font-extrabold shadow-sm transition-all cursor-pointer active:scale-95"
             >
               Apply Filter
             </button>
@@ -1228,7 +1230,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
                   setEndDate("");
                   fetchLiveGraph(false, "", "");
                 }}
-                className="px-2 py-0.5 rounded bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 text-[10px] font-bold border border-rose-500/40 cursor-pointer"
+                className="px-2 py-0.5 rounded bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 text-[10px] font-bold border border-rose-700/50 cursor-pointer"
               >
                 Clear
               </button>
@@ -1237,73 +1239,8 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         </div>
       )}
 
-      {/* Main Canvas Area (Centerpiece of the Screen) */}
-      <div className="relative flex-1 min-h-0 mt-2 rounded-xl border border-slate-200 bg-[#f8fafc] overflow-hidden enterprise-grid-light shadow-2xs">
-        {/* Subtle India Map Silhouette & Geographic Intelligence Watermark */}
-        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-[0.04] select-none">
-          <svg
-            viewBox="0 0 600 700"
-            className="w-full h-full max-w-[620px] max-h-[680px] text-slate-900"
-            fill="currentColor"
-          >
-            {/* Stylized National Grid Outline of India */}
-            <path
-              d="M 285 45 C 290 55, 305 60, 310 75 C 315 90, 330 95, 335 110 C 340 125, 360 135, 370 150 C 385 165, 410 170, 420 185 C 430 200, 445 205, 455 220 C 465 240, 480 250, 470 270 C 460 285, 435 290, 430 305 C 420 325, 400 340, 395 360 C 390 380, 385 400, 375 420 C 365 440, 350 460, 340 480 C 330 500, 320 520, 310 540 C 300 560, 290 580, 285 600 C 280 610, 275 620, 270 610 C 265 590, 255 565, 245 540 C 235 515, 220 490, 210 465 C 200 440, 190 415, 185 390 C 180 365, 175 340, 170 315 C 165 290, 155 270, 150 250 C 145 230, 150 210, 160 195 C 175 180, 195 170, 210 155 C 225 140, 240 120, 250 100 C 260 80, 275 60, 285 45 Z"
-              stroke="#0f172a"
-              strokeWidth="2"
-              fillOpacity="0.8"
-            />
-          </svg>
-        </div>
-
-        {/* Geographic Reference Radar Grid & Regional Markers (Synthetic Context) */}
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
-          {/* Delhi NCR Node */}
-          <div className="absolute top-[28%] left-[45%] flex items-center gap-1.5 opacity-35">
-            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
-            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
-              DELHI NCR
-            </span>
-          </div>
-
-          {/* Mumbai Node */}
-          <div className="absolute top-[52%] left-[34%] flex items-center gap-1.5 opacity-35">
-            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
-            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
-              MUMBAI
-            </span>
-          </div>
-
-          {/* Lucknow / Bareilly Node */}
-          <div className="absolute top-[33%] left-[53%] flex items-center gap-1.5 opacity-35">
-            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
-            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
-              LUCKNOW • BAREILLY
-            </span>
-          </div>
-
-          {/* Hyderabad Node */}
-          <div className="absolute top-[58%] left-[46%] flex items-center gap-1.5 opacity-35">
-            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
-            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
-              HYDERABAD
-            </span>
-          </div>
-
-          {/* Bengaluru Node */}
-          <div className="absolute top-[70%] left-[44%] flex items-center gap-1.5 opacity-35">
-            <span className="w-2 h-2 rounded-full bg-blue-600 ring-4 ring-blue-500/20" />
-            <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase font-mono">
-              BENGALURU
-            </span>
-          </div>
-
-          {/* Grid Latitude / Longitude lines watermark */}
-          <div className="absolute bottom-2.5 left-3 text-[9px] font-mono text-slate-400 opacity-60">
-            GEO-INT REFERENCE GRID // 78°00'E 22°00'N • SYNTHETIC TOPOLOGY
-          </div>
-        </div>
-
+      {/* Main Canvas Area (No Scroll, Full Viewport Fit) */}
+      <div className="relative flex-1 min-h-0 mt-2 rounded-xl border border-slate-200 bg-[#f8fafc] overflow-hidden shadow-2xs flex flex-col justify-between">
         {/* Permanent Cytoscape Canvas */}
         <div
           ref={containerRef}
@@ -1314,34 +1251,161 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         {/* Loading Overlay */}
         {isLoadingGraph && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/85 backdrop-blur-xs text-slate-700 gap-2.5">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             <span className="text-xs text-slate-900 font-extrabold tracking-wide uppercase">
               Computing Dynamic Syndicate Topology &amp; Modularity...
             </span>
           </div>
         )}
 
-        {/* Empty State Overlay */}
+        {/* Empty State Overlay with National Watermarks & 6 Capability Cards (Zero Scroll) */}
         {!isLoadingGraph && elements.length === 0 && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-600 gap-3 text-center p-6 bg-slate-50/95">
-            <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-blue-600 shadow-md">
-              <Radio className="w-7 h-7 animate-pulse text-blue-600" />
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-between p-3.5 bg-gradient-to-b from-[#F0F5FA] via-[#F8FAFC] to-[#EFF6FF] overflow-hidden select-none">
+            {/* Background Watermark SVGs */}
+            <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-between px-6 opacity-25 select-none overflow-hidden">
+              {/* Left: Constellation Network Nodes */}
+              <svg viewBox="0 0 300 300" className="w-52 h-52 text-blue-300/40" fill="currentColor">
+                <circle cx="50" cy="80" r="12" fill="#93C5FD" opacity="0.4" />
+                <circle cx="150" cy="50" r="16" fill="#60A5FA" opacity="0.3" />
+                <circle cx="220" cy="120" r="10" fill="#93C5FD" opacity="0.4" />
+                <circle cx="100" cy="180" r="18" fill="#3B82F6" opacity="0.25" />
+                <circle cx="240" cy="220" r="14" fill="#60A5FA" opacity="0.35" />
+                <line x1="50" y1="80" x2="150" y2="50" stroke="#93C5FD" strokeWidth="1.5" strokeDasharray="3,3" />
+                <line x1="150" y1="50" x2="220" y2="120" stroke="#93C5FD" strokeWidth="1.5" />
+                <line x1="50" y1="80" x2="100" y2="180" stroke="#93C5FD" strokeWidth="1.5" />
+                <line x1="100" y1="180" x2="240" y2="220" stroke="#93C5FD" strokeWidth="1.5" />
+              </svg>
+
+              {/* Center: Ashoka Chakra Watermark */}
+              <svg viewBox="0 0 400 400" className="w-80 h-80 text-blue-200/20 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="3">
+                <circle cx="200" cy="200" r="160" strokeWidth="4" />
+                <circle cx="200" cy="200" r="35" strokeWidth="4" />
+                <circle cx="200" cy="200" r="10" fill="currentColor" />
+                {Array.from({ length: 24 }).map((_, i) => {
+                  const angle = (i * 360) / 24;
+                  return (
+                    <line
+                      key={i}
+                      x1="200"
+                      y1="200"
+                      x2={200 + 155 * Math.cos((angle * Math.PI) / 180)}
+                      y2={200 + 155 * Math.sin((angle * Math.PI) / 180)}
+                      strokeWidth="2"
+                    />
+                  );
+                })}
+              </svg>
+
+              {/* Right: National India Map & Telecom Node Constellation */}
+              <svg viewBox="0 0 320 380" className="w-56 h-64 text-blue-300/30" fill="none" stroke="currentColor">
+                <path
+                  d="M 150 25 C 155 35, 170 40, 175 50 C 180 65, 195 70, 200 85 C 205 100, 225 110, 235 125 C 250 140, 275 145, 285 160 C 295 175, 305 180, 310 195 C 315 210, 310 225, 290 235 C 275 245, 260 250, 255 265 C 245 285, 225 300, 220 320 C 215 335, 205 350, 195 365 C 185 350, 175 330, 165 310 C 155 285, 140 260, 130 235 C 120 210, 110 185, 105 160 C 100 135, 95 110, 90 85 C 85 60, 110 40, 150 25 Z"
+                  strokeWidth="2"
+                  strokeDasharray="4,4"
+                  fill="#93C5FD"
+                  fillOpacity="0.06"
+                />
+                <circle cx="180" cy="90" r="4" fill="#3B82F6" />
+                <circle cx="140" cy="180" r="4" fill="#3B82F6" />
+                <circle cx="210" cy="210" r="4" fill="#3B82F6" />
+              </svg>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
+
+            {/* Center Visual Hero */}
+            <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-lg my-auto py-2">
+              {/* Soft glow aura */}
+              <div className="w-20 h-20 rounded-full bg-blue-400/20 blur-xl absolute -top-1 pointer-events-none" />
+
+              {/* Crisp circular white badge with stacked database icon */}
+              <div className="w-16 h-16 rounded-full bg-white border border-blue-100 shadow-lg flex items-center justify-center relative mb-3">
+                <div className="w-11 h-11 rounded-full bg-blue-50/90 flex items-center justify-center text-blue-600">
+                  <Database className="w-6 h-6 text-[#2563EB]" />
+                </div>
+              </div>
+
+              {/* Main Headline */}
+              <h3 className="text-xl font-black text-[#0F172A] tracking-tight">
                 Awaiting Evidence Ingestion
               </h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+
+              {/* Subheading */}
+              <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
                 Upload CDR logs, Bank transactions CSV, or FIR case dossiers to generate the interactive criminal syndicate graph.
               </p>
+
+              {/* Main CTA Button */}
+              <button
+                onClick={() => fetchLiveGraph(false)}
+                className="mt-3.5 flex items-center gap-2 px-5 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-98 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Load Active Database Graph</span>
+              </button>
             </div>
-            <button
-              onClick={() => fetchLiveGraph(false)}
-              className="mt-1 flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Load Active Database Graph</span>
-            </button>
+
+            {/* Bottom Feature Capabilities Ribbon (The 6 Cards - Fixed, No Overflow) */}
+            <div className="relative z-10 w-full max-w-3xl mx-auto bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-xs px-3 py-2 grid grid-cols-6 gap-2">
+              {/* 1. Entity Resolution */}
+              <div className="flex flex-col items-center text-center gap-1 p-1">
+                <div className="w-7 h-7 rounded-lg bg-orange-50 border border-orange-200/70 flex items-center justify-center text-[#EA580C]">
+                  <Share2 className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-[9.5px] font-bold text-slate-800 leading-tight">
+                  Entity Resolution
+                  <span className="block text-[8.5px] text-slate-400 font-medium">(DSU + Phonetic)</span>
+                </div>
+              </div>
+
+              {/* 2. Community Detection */}
+              <div className="flex flex-col items-center text-center gap-1 p-1">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200/70 flex items-center justify-center text-[#16A34A]">
+                  <Users className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-[9.5px] font-bold text-slate-800 leading-tight">
+                  Community<br />Detection
+                </div>
+              </div>
+
+              {/* 3. Cross-Cluster Links */}
+              <div className="flex flex-col items-center text-center gap-1 p-1">
+                <div className="w-7 h-7 rounded-lg bg-rose-50 border border-rose-200/70 flex items-center justify-center text-[#EF4444]">
+                  <Link2 className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-[9.5px] font-bold text-slate-800 leading-tight">
+                  Cross-Cluster<br />Links
+                </div>
+              </div>
+
+              {/* 4. Financial Evasion Detection */}
+              <div className="flex flex-col items-center text-center gap-1 p-1">
+                <div className="w-7 h-7 rounded-lg bg-purple-50 border border-purple-200/70 flex items-center justify-center text-[#9333EA]">
+                  <BarChart3 className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-[9.5px] font-bold text-slate-800 leading-tight">
+                  Financial<br />Evasion Detection
+                </div>
+              </div>
+
+              {/* 5. GAT Link Prediction */}
+              <div className="flex flex-col items-center text-center gap-1 p-1">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200/70 flex items-center justify-center text-[#2563EB]">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-[9.5px] font-bold text-slate-800 leading-tight">
+                  GAT Link<br />Prediction
+                </div>
+              </div>
+
+              {/* 6. Graph-RAG Copilot */}
+              <div className="flex flex-col items-center text-center gap-1 p-1">
+                <div className="w-7 h-7 rounded-lg bg-cyan-50 border border-cyan-200/70 flex items-center justify-center text-[#0891B2]">
+                  <Bot className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-[9.5px] font-bold text-slate-800 leading-tight">
+                  Graph-RAG<br />Copilot
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

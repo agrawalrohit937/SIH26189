@@ -27,12 +27,18 @@ export const BriefingGeneratorModal: React.FC<BriefingGeneratorModalProps> = ({
   apiBaseUrl,
   isOpen,
   onClose,
-  defaultEntityName = "Jagrati Sibal",
+  defaultEntityName = "",
 }) => {
   const [entityName, setEntityName] = useState<string>(defaultEntityName);
   const [briefingMarkdown, setBriefingMarkdown] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (defaultEntityName) {
+      setEntityName(defaultEntityName);
+    }
+  }, [defaultEntityName, isOpen]);
 
   const generateBriefing = async () => {
     if (!entityName.trim()) {

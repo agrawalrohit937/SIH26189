@@ -109,21 +109,22 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
 
   // --- Process Bank Transactions ---
   const handleProcessBank = async () => {
+    if (!bankFile) {
+      toast.warning("No Banking Ledger Selected", {
+        description: "Please browse or drag & drop a bank transaction CSV file first.",
+      });
+      return;
+    }
+
     setBankLoading(true);
-    const fileName = bankFile ? bankFile.name : "Bank_Transactions.csv (Default)";
-    addLog("bank", "pending", `Ingesting banking ledger (${fileName})...`);
+    addLog("bank", "pending", `Ingesting banking ledger (${bankFile.name})...`);
 
     try {
-      let response;
-      if (bankFile) {
-        const formData = new FormData();
-        formData.append("bank_file", bankFile);
-        response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      } else {
-        response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`);
-      }
+      const formData = new FormData();
+      formData.append("bank_file", bankFile);
+      const response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       const recs = response.data?.data?.bank_ingestion?.records_ingested || 0;
       setBankUploaded(true);
@@ -144,21 +145,22 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
 
   // --- Process CDR Logs ---
   const handleProcessCdr = async () => {
+    if (!cdrFile) {
+      toast.warning("No CDR Logs Selected", {
+        description: "Please browse or drag & drop a telecom CDR CSV file first.",
+      });
+      return;
+    }
+
     setCdrLoading(true);
-    const fileName = cdrFile ? cdrFile.name : "CDR_Logs.csv (Default)";
-    addLog("cdr", "pending", `Ingesting telecom CDR logs (${fileName})...`);
+    addLog("cdr", "pending", `Ingesting telecom CDR logs (${cdrFile.name})...`);
 
     try {
-      let response;
-      if (cdrFile) {
-        const formData = new FormData();
-        formData.append("cdr_file", cdrFile);
-        response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      } else {
-        response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`);
-      }
+      const formData = new FormData();
+      formData.append("cdr_file", cdrFile);
+      const response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       const recs = response.data?.data?.cdr_ingestion?.records_ingested || 0;
       setCdrUploaded(true);
@@ -179,21 +181,22 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
 
   // --- Process FIR Case File ---
   const handleProcessFir = async () => {
+    if (!firFile) {
+      toast.warning("No FIR / Case Docket Selected", {
+        description: "Please browse or drag & drop an FIR text, PDF, or image document first.",
+      });
+      return;
+    }
+
     setFirLoading(true);
-    const fileName = firFile ? firFile.name : "FIR_Case_992.txt (Default)";
-    addLog("fir", "pending", `Extracting entities from (${fileName})...`);
+    addLog("fir", "pending", `Extracting entities from (${firFile.name})...`);
 
     try {
-      let response;
-      if (firFile) {
-        const formData = new FormData();
-        formData.append("file", firFile);
-        response = await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      } else {
-        response = await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`);
-      }
+      const formData = new FormData();
+      formData.append("file", firFile);
+      const response = await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       const suspects = response.data?.data?.fir_extraction?.total_persons_extracted || 0;
       setFirUploaded(true);
@@ -214,32 +217,28 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
 
   // --- Master Ingest All ---
   const handleIngestAll = async () => {
+    if (!bankFile && !cdrFile && !firFile) {
+      toast.warning("No Evidence Files Staged", {
+        description: "Please select or drop at least one Banking CSV, CDR CSV, or FIR Case Docket to ingest.",
+      });
+      return;
+    }
+
     setMasterLoading(true);
     addLog("system", "pending", "Initiating batch multi-source evidence intake...");
 
     try {
       // 1. Ingest CSVs (CDR & Bank together if present)
-      const csvFormData = new FormData();
-      let hasCsv = false;
-      if (cdrFile) {
-        csvFormData.append("cdr_file", cdrFile);
-        hasCsv = true;
-      }
-      if (bankFile) {
-        csvFormData.append("bank_file", bankFile);
-        hasCsv = true;
-      }
+      if (cdrFile || bankFile) {
+        const csvFormData = new FormData();
+        if (cdrFile) csvFormData.append("cdr_file", cdrFile);
+        if (bankFile) csvFormData.append("bank_file", bankFile);
 
-      if (hasCsv) {
         await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, csvFormData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         if (cdrFile) setCdrUploaded(true);
         if (bankFile) setBankUploaded(true);
-      } else {
-        await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`);
-        setBankUploaded(true);
-        setCdrUploaded(true);
       }
 
       // 2. Ingest FIR
@@ -250,15 +249,12 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
           headers: { "Content-Type": "multipart/form-data" },
         });
         setFirUploaded(true);
-      } else {
-        await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`);
-        setFirUploaded(true);
       }
 
       toast.success("Batch Evidence Ingestion Complete", {
-        description: "All records parsed, entity resolution resolved, and network graph updated.",
+        description: "All uploaded files parsed, entity resolution resolved, and network graph updated.",
       });
-      addLog("system", "success", "All digital evidence successfully committed into Neo4j.");
+      addLog("system", "success", "All uploaded evidence successfully committed into Neo4j.");
       if (onDataIngested) onDataIngested();
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || err.message || "Batch ingestion failed.";
@@ -317,7 +313,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
           ) : (
             <>
               <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>{stagedCount > 0 ? "Ingest All Staged Files" : "Ingest Sample Evidence (1-Click)"}</span>
+              <span>{stagedCount > 0 ? `Ingest ${stagedCount} Staged File(s)` : "Upload & Ingest Evidence"}</span>
             </>
           )}
         </button>
@@ -326,7 +322,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
       {/* 3 Evidence Cards */}
       <div className="space-y-3">
         {/* ========================================================================= */}
-        {/* CARD 1: Financial Ledger (Bank_Transactions.csv) */}
+        {/* CARD 1: Financial Ledger (Bank Transactions CSV) */}
         {/* ========================================================================= */}
         <div
           className={`rounded-xl border transition-all p-3.5 ${
@@ -344,7 +340,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
               </div>
               <div>
                 <span className="text-xs font-bold text-slate-900 block">
-                  1. Financial Ledger (CSV)
+                  1. Financial Ledger (CSV / XLSX)
                 </span>
                 <span className="text-[10px] text-slate-500">Bank transactions, mule accounts &amp; transfer amounts</span>
               </div>
@@ -355,8 +351,8 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                 {formatFileSize(bankFile.size)}
               </span>
             ) : (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                Bank_Transactions.csv
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                No file staged
               </span>
             )}
           </div>
@@ -495,8 +491,8 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                 {formatFileSize(cdrFile.size)}
               </span>
             ) : (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                CDR_Logs.csv
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                No file staged
               </span>
             )}
           </div>
@@ -548,7 +544,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                 <div className="flex items-center gap-2 truncate">
                   <PhoneCall className="w-4 h-4 text-blue-600 shrink-0" />
                   <span className="text-slate-900 font-bold truncate max-w-[280px]" title={cdrFile?.name || "CDR_Logs.csv"}>
-                    {cdrFile ? cdrFile.name : "CDR_Logs.csv (Default Sample)"}
+                    {cdrFile ? cdrFile.name : "CDR Logs CSV"}
                   </span>
                 </div>
                 <button
@@ -624,7 +620,7 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
               </div>
               <div>
                 <span className="text-xs font-bold text-slate-900 block">
-                  3. Case Docket / FIR (TXT / PDF)
+                  3. Case Docket / FIR (PDF / TXT / Scanned Image)
                 </span>
                 <span className="text-[10px] text-slate-500">Unstructured narrative for NLP entity &amp; suspect extraction</span>
               </div>
@@ -635,8 +631,8 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
                 {formatFileSize(firFile.size)}
               </span>
             ) : (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                FIR_Case_992.txt
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                No file staged
               </span>
             )}
           </div>
@@ -687,8 +683,8 @@ export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
               <div className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
                 <div className="flex items-center gap-2 truncate">
                   <FileText className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span className="text-slate-900 font-bold truncate max-w-[280px]" title={firFile?.name || "FIR_Case_992.txt"}>
-                    {firFile ? firFile.name : "FIR_Case_992.txt (Default Sample)"}
+                  <span className="text-slate-900 font-bold truncate max-w-[280px]" title={firFile?.name || "FIR Docket"}>
+                    {firFile ? firFile.name : "FIR Docket Document"}
                   </span>
                 </div>
                 <button

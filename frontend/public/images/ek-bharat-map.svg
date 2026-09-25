@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="50%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0fdf4"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="120" rx="8" fill="url(#cardGrad)" stroke="#e2e8f0" stroke-width="1.5"/>
+  <path d="M 280 15 C 285 20, 295 25, 300 35 C 305 45, 315 50, 320 60 C 325 75, 310 85, 300 95 C 290 105, 275 110, 265 95 C 255 80, 245 60, 255 40 C 265 20, 275 15, 280 15 Z" fill="#0A2540" opacity="0.08"/>
+  <circle cx="50" cy="60" r="28" fill="#FF9933" fill-opacity="0.15" stroke="#FF9933" stroke-width="2"/>
+  <circle cx="50" cy="60" r="14" fill="#0A2540" fill-opacity="0.1"/>
+  <text x="95" y="52" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="14" fill="#0A2540" letter-spacing="1">एक भारत • श्रेष्ठ भारत</text>
+  <text x="95" y="72" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="10" fill="#475569">National Multi-Agency Center (MAC) Grid</text>
+  <rect x="95" y="82" width="60" height="16" rx="4" fill="#138808" fill-opacity="0.15" stroke="#138808" stroke-opacity="0.3"/>
+  <text x="105" y="94" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="8" fill="#15803d">ACTIVE GRID</text>
+</svg>

@@ -257,9 +257,15 @@ Respond strictly with valid JSON only. Do not wrap in markdown or add conversati
 
     # Index narrative text into Document RAG for paragraph-level citation search
     try:
+        fir_match = re.search(r'(?:FIR\s*(?:No\.?|Number)?|Case\s*(?:No\.?|Number)?|Crime\s*(?:No\.?|Number)?)\s*[:.-]?\s*([A-Za-z0-9\/-]+)', fir_text, re.IGNORECASE)
+        ps_match = re.search(r'(?:Police\s*Station|PS|Branch)\s*[:.-]?\s*([A-Za-z0-9\s,-]+?)(?:\n|$|\.)', fir_text, re.IGNORECASE)
+        
+        dyn_fir_num = fir_match.group(1).strip() if fir_match else f"CASE-{abs(hash(fir_text[:60])) % 10000}/2026"
+        dyn_ps = ps_match.group(1).strip() if ps_match else "Law Enforcement Agency"
+
         index_fir_document(
-            fir_number="CR-2026/08/992",
-            police_station="Cyber Crime Police Station, New Delhi",
+            fir_number=dyn_fir_num,
+            police_station=dyn_ps,
             text=fir_text
         )
     except Exception as e:

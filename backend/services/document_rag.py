@@ -64,19 +64,22 @@ def index_fir_document(fir_number: str, police_station: str, text: str):
         logger.info(f"Indexed {len(DOCUMENT_STORE)} document paragraphs across FIR archives.")
 
 
+def clear_document_store():
+    """
+    Clears all indexed in-memory documents and vector embeddings.
+    """
+    global DOCUMENT_STORE, VECTORIZER, DOCUMENT_VECTORS
+    DOCUMENT_STORE = []
+    VECTORIZER = None
+    DOCUMENT_VECTORS = None
+    logger.info("Purged in-memory Document RAG store and vector indices.")
+
+
 def search_fir_documents(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
     """
     Executes vector cosine search over indexed FIR paragraphs.
     """
     global DOCUMENT_STORE, VECTORIZER, DOCUMENT_VECTORS
-
-    if not DOCUMENT_STORE or VECTORIZER is None or DOCUMENT_VECTORS is None:
-        # Load default FIR if empty
-        fir_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "FIR_Case_992.txt")
-        if os.path.exists(fir_path):
-            with open(fir_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            index_fir_document(fir_number="992/2026", police_station="CRIME BRANCH SOG, NEW DELHI", text=content)
 
     if not DOCUMENT_STORE or VECTORIZER is None or DOCUMENT_VECTORS is None:
         return []

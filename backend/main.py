@@ -24,6 +24,7 @@ from services.evasion_detection import detect_burner_chains
 from services.geo_intelligence import get_geo_intelligence_overlay
 from services.ocr_ingestion import extract_text_from_pdf, extract_text_from_image
 from services.briefing_generator import generate_officer_briefing
+from services.document_rag import clear_document_store
 from ai_agent import chat_with_copilot
 
 
@@ -280,13 +281,19 @@ async def trigger_csv_ingestion(
         cdr_result = None
         bank_result = None
 
+        if cdr_file is None and bank_file is None and not cdr_file_path and not bank_file_path:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No CSV file provided. Please select and upload a Banking Ledger CSV or Telecom CDR Logs CSV."
+            )
+
         # 1. Process CDR Logs
         if cdr_file is not None:
             content = await cdr_file.read()
             if len(content) > MAX_FILE_SIZE:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded CDR file exceeds maximum allowed size (10 MB).")
             cdr_result = ingest_cdr_data(content)
-        elif cdr_file_path or (bank_file is None and bank_file_path is None):
+        elif cdr_file_path:
             cdr_result = ingest_cdr_data(cdr_file_path)
 
         # 2. Process Bank Transactions
@@ -295,7 +302,7 @@ async def trigger_csv_ingestion(
             if len(content) > MAX_FILE_SIZE:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded Bank file exceeds maximum allowed size (10 MB).")
             bank_result = ingest_bank_data(content)
-        elif bank_file_path or (cdr_file is None and cdr_file_path is None):
+        elif bank_file_path:
             bank_result = ingest_bank_data(bank_file_path)
 
         # 3. Run entity resolution pass
@@ -347,6 +354,12 @@ async def trigger_fir_extraction(
     Logs tamper-evident audit record.
     """
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+    if file is None and not file_path and not text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No FIR docket provided. Please select and upload a Case Docket (PDF/TXT/Image) or provide text."
+        )
 
     try:
         fir_result = None
@@ -694,6 +707,7 @@ def clear_database_endpoint(user: Dict[str, Any] = Depends(get_current_user)):
 
         purge_query = "MATCH (n) DETACH DELETE n"
         db.execute_query(purge_query)
+        clear_document_store()
         
         result = db.execute_query("MATCH (n) RETURN count(n) AS c")
         node_count = result[0]["c"] if result and len(result) > 0 else 0
