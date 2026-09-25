@@ -34,6 +34,10 @@ import { DataIngestionPanel } from "@/components/DataIngestionPanel";
 import { NetworkGraphPanel } from "@/components/NetworkGraphPanel";
 import { IntelligenceAlertsPanel } from "@/components/IntelligenceAlertsPanel";
 import { CopilotChat } from "@/components/CopilotChat";
+import { GATLinkPredictionPanel } from "@/components/GATLinkPredictionPanel";
+import { GeoIntelligenceModal } from "@/components/GeoIntelligenceModal";
+import { BriefingGeneratorModal } from "@/components/BriefingGeneratorModal";
+import { AuthLoginModal } from "@/components/AuthLoginModal";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -47,6 +51,15 @@ export default function DashboardPage() {
   // Modals for Ingestion Hub and Financial Alerts
   const [showIngestionModal, setShowIngestionModal] = useState<boolean>(false);
   const [showAlertsModal, setShowAlertsModal] = useState<boolean>(false);
+
+  // V2 Feature Modals
+  const [showGATModal, setShowGATModal] = useState<boolean>(false);
+  const [showGeoModal, setShowGeoModal] = useState<boolean>(false);
+  const [showBriefingModal, setShowBriefingModal] = useState<boolean>(false);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [briefingSubject, setBriefingSubject] = useState<string>("Jagrati Sibal");
+  const [currentRole, setCurrentRole] = useState<string>("Supervisor");
+  const [currentUsername, setCurrentUsername] = useState<string>("supervisor");
 
   // Graph topology stats for left & right panels
   const [graphStats, setGraphStats] = useState({
@@ -219,92 +232,117 @@ export default function DashboardPage() {
 
       {/* Institutional Intelligence Header Banner */}
       <header className="px-3 sm:px-4 pt-2 pb-1.5 shrink-0">
-        <div className="max-w-[1920px] mx-auto rounded-xl bg-gradient-to-r from-[#0a2540] via-[#0f3460] to-[#0a2540] text-white px-3.5 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-3 border border-[#1e3a66]/40">
+        <div className="max-w-[1920px] mx-auto rounded-xl bg-slate-950/95 backdrop-blur-md text-white px-4 py-2.5 shadow-md flex flex-wrap items-center justify-between gap-3 border border-slate-800/80">
           {/* Left: Institutional Emblem & National Title */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-xs shrink-0">
-              <Shield className="w-5 h-5 text-blue-200" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-800 border border-blue-400/40 flex items-center justify-center text-white shadow-xs shrink-0">
+              <Shield className="w-5 h-5 text-white" />
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-extrabold tracking-widest uppercase bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/30 leading-none">
+                <span className="text-[9px] font-black tracking-widest uppercase bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-400/30 leading-none">
                   SIH 2026 • MINISTRY OF HOME AFFAIRS
                 </span>
               </div>
               <h1 className="text-base sm:text-lg font-black tracking-tight text-white font-sans uppercase mt-0.5 leading-tight">
                 National Crime Intelligence Grid
               </h1>
-              <p className="text-[11px] text-blue-200/90 font-medium leading-none hidden sm:block">
-                AI-Powered Investigation &amp; Network Intelligence
+              <p className="text-[11px] text-slate-400 font-medium leading-none hidden sm:block">
+                AI Criminal Network &amp; Anti-Money Laundering Intelligence System
               </p>
             </div>
           </div>
 
-          {/* Right: Action Controls & Copilot Branding */}
+          {/* Right: Action Controls & Navigation Group */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-right hidden xl:block border-r border-white/20 pr-3">
-              <span className="text-[11px] font-bold text-white uppercase tracking-wide block leading-tight">
-                AI Investigator's Co-Pilot
-              </span>
-              <span className="text-[10px] text-blue-200 leading-tight block">
-                Evidence-driven decision support
-              </span>
-            </div>
-
             {/* Evidence Intake Modal Button */}
             <button
               onClick={() => setShowIngestionModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5" />
               <span>Evidence Intake</span>
             </button>
 
-            {/* Financial Intelligence Alerts Modal Button */}
+            {/* Financial & Evasion Alerts Modal Button */}
             <button
               onClick={() => setShowAlertsModal(true)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer ${
                 activeAlertCount > 0
                   ? "bg-rose-600 hover:bg-rose-500 text-white animate-pulse"
-                  : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                  : "bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700"
               }`}
             >
-              <ShieldAlert className="w-3.5 h-3.5" />
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
               <span>Alerts ({activeAlertCount})</span>
+            </button>
+
+            {/* GAT AI Link Prediction Button */}
+            <button
+              onClick={() => setShowGATModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 text-xs font-bold border border-purple-500/40 shadow-xs transition-all cursor-pointer"
+              title="Graph Attention Network Link Predictions"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+              <span>GAT Links</span>
+            </button>
+
+            {/* Geo-Intelligence GIS Map Button */}
+            <button
+              onClick={() => setShowGeoModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-200 text-xs font-bold border border-emerald-500/40 shadow-xs transition-all cursor-pointer"
+              title="Geospatial Hubs & BTS Tower Triangulation"
+            >
+              <MapPin className="w-3.5 h-3.5 text-emerald-300" />
+              <span>GIS Map</span>
+            </button>
+
+            {/* Officer Briefing Generator Button */}
+            <button
+              onClick={() => setShowBriefingModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 text-xs font-bold border border-indigo-500/40 shadow-xs transition-all cursor-pointer"
+              title="Generate Officer Intelligence Dossier"
+            >
+              <FileCheck2 className="w-3.5 h-3.5 text-indigo-300" />
+              <span>Briefing</span>
+            </button>
+
+            {/* RBAC Role Switcher Badge Button */}
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700/80 transition-all cursor-pointer shadow-xs"
+              title="Click to Switch Demo RBAC Role (Investigator / Supervisor / Admin)"
+            >
+              <Shield className="w-3.5 h-3.5 text-amber-400" />
+              <span>{currentRole}</span>
             </button>
 
             {/* Reset / Purge Database */}
             <button
               onClick={handlePurgeDatabase}
               disabled={isPurging}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-rose-600/80 text-white border border-white/20 transition-all cursor-pointer disabled:opacity-50"
+              className="p-2 rounded-lg bg-slate-800/80 hover:bg-rose-600/80 text-rose-300 hover:text-white border border-slate-700 transition-all cursor-pointer disabled:opacity-50"
               title="Purge session database"
             >
               {isPurging ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-300" />
               ) : (
-                <RotateCcw className="w-3.5 h-3.5 text-rose-300 hover:text-white" />
+                <RotateCcw className="w-3.5 h-3.5" />
               )}
             </button>
 
-            {/* Privacy Mode: Ephemeral Session */}
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-[11px] text-emerald-200">
-              <Shield className="w-3 h-3 text-emerald-300" />
-              <span className="font-semibold">Privacy: Ephemeral</span>
-            </div>
-
-            {/* System Status */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/20 text-[11px]">
+            {/* System Status Pill */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px]">
               {backendStatus === "online" ? (
                 <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="text-emerald-300 font-bold">ONLINE</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 font-extrabold font-mono">ONLINE</span>
                 </>
               ) : (
                 <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                  <span className="text-rose-300 font-bold">OFFLINE</span>
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="text-rose-400 font-extrabold font-mono">OFFLINE</span>
                 </>
               )}
             </div>
@@ -312,17 +350,17 @@ export default function DashboardPage() {
             {/* Fullscreen App Toggle */}
             <button
               onClick={toggleAppFullscreen}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 text-[11px] font-bold transition-all cursor-pointer shadow-xs"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer shadow-xs"
               title={isAppFullscreen ? "Exit App Fullscreen (ESC)" : "Expand App to Full Screen"}
             >
               {isAppFullscreen ? (
                 <>
-                  <Minimize className="w-3 h-3 text-amber-300" />
+                  <Minimize className="w-3.5 h-3.5 text-amber-300" />
                   <span className="hidden sm:inline">Exit Fullscreen</span>
                 </>
               ) : (
                 <>
-                  <Maximize className="w-3 h-3 text-blue-200" />
+                  <Maximize className="w-3.5 h-3.5 text-blue-300" />
                   <span className="hidden sm:inline">Full Screen</span>
                 </>
               )}
@@ -521,6 +559,10 @@ export default function DashboardPage() {
             apiBaseUrl={API_BASE_URL}
             refreshTrigger={graphRefreshTrigger}
             onRefreshLiveGraph={fetchGraphStats}
+            onOpenBriefing={(target) => {
+              setBriefingSubject(target);
+              setShowBriefingModal(true);
+            }}
           />
         </div>
 
@@ -781,6 +823,51 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* GAT Link Prediction Modal */}
+      <GATLinkPredictionPanel
+        apiBaseUrl={API_BASE_URL}
+        isOpen={showGATModal}
+        onClose={() => setShowGATModal(false)}
+        onLinkConfirmed={() => {
+          setGraphRefreshTrigger((prev) => (prev <= 0 ? 1 : prev + 1));
+          fetchGraphStats();
+        }}
+      />
+
+      {/* Geo-Intelligence GIS Map Modal */}
+      <GeoIntelligenceModal
+        apiBaseUrl={API_BASE_URL}
+        isOpen={showGeoModal}
+        onClose={() => setShowGeoModal(false)}
+        onSelectEntity={(name) => {
+          setBriefingSubject(name);
+          setShowGeoModal(false);
+          setShowBriefingModal(true);
+        }}
+      />
+
+      {/* Officer Intelligence Briefing Generator Modal */}
+      <BriefingGeneratorModal
+        apiBaseUrl={API_BASE_URL}
+        isOpen={showBriefingModal}
+        onClose={() => setShowBriefingModal(false)}
+        defaultEntityName={briefingSubject}
+      />
+
+      {/* RBAC Demo Role Login Modal */}
+      <AuthLoginModal
+        apiBaseUrl={API_BASE_URL}
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        currentRole={currentRole}
+        currentUsername={currentUsername}
+        onLoginSuccess={(token, user) => {
+          setCurrentRole(user.role);
+          setCurrentUsername(user.username);
+          setGraphRefreshTrigger((prev) => (prev <= 0 ? 1 : prev + 1));
+          fetchGraphStats();
+        }}
+      />
 
       {/* Floating AI Investigator Copilot */}
       <CopilotChat />

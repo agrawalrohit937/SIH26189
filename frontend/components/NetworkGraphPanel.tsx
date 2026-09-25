@@ -62,6 +62,7 @@ interface NetworkGraphPanelProps {
   apiBaseUrl: string;
   refreshTrigger?: number;
   onRefreshLiveGraph?: () => void;
+  onOpenBriefing?: (entityName: string) => void;
 }
 
 // Transform raw elements into compound graph elements grouped by cluster
@@ -172,6 +173,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
   apiBaseUrl,
   refreshTrigger = 0,
   onRefreshLiveGraph,
+  onOpenBriefing,
 }) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -185,6 +187,11 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copiedText, setCopiedText] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Temporal Scrubber state
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [showTemporalBar, setShowTemporalBar] = useState<boolean>(true);
 
   // Path tracing state (Specialty 1)
   const [pathTraceMode, setPathTraceMode] = useState(false);
@@ -795,12 +802,20 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     };
   }, [cytoscapeStylesheet, layoutConfig]);
 
-  // Fetch Live Graph Topology from Neo4j
+  // Fetch Live Graph Topology from Neo4j (Supports Temporal Scrubber)
   const fetchLiveGraph = useCallback(
-    async (isSilent = false) => {
+    async (isSilent = false, overrideStart?: string, overrideEnd?: string) => {
       setIsLoadingGraph(true);
       try {
-        const response = await axios.get(`${apiBaseUrl}/api/v1/graph/topology`);
+        const s = overrideStart !== undefined ? overrideStart : startDate;
+        const e = overrideEnd !== undefined ? overrideEnd : endDate;
+
+        const params = new URLSearchParams();
+        if (s && s.trim()) params.append("start_date", s.trim());
+        if (e && e.trim()) params.append("end_date", e.trim());
+
+        const queryString = params.toString() ? `?${params.toString()}` : "";
+        const response = await axios.get(`${apiBaseUrl}/api/v1/graph/topology${queryString}`);
         const data = response.data;
 
         let rawNodes: ElementDefinition[] = [];
@@ -821,8 +836,9 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
 
         if (!isSilent) {
           if (combinedElements.length > 0) {
+            const filterInfo = (s || e) ? ` [Filtered: ${s || "..."} to ${e || "..."}]` : "";
             toast.success("Graph Synchronized", {
-              description: `Loaded ${rawNodes.length} entities & ${rawEdges.length} relationships from Neo4j.`,
+              description: `Loaded ${rawNodes.length} entities & ${rawEdges.length} relationships from Neo4j${filterInfo}.`,
             });
           }
         }
@@ -840,7 +856,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         setIsLoadingGraph(false);
       }
     },
-    [apiBaseUrl, onRefreshLiveGraph]
+    [apiBaseUrl, onRefreshLiveGraph, startDate, endDate]
   );
 
   // Push filtered elements whenever data or filters change
@@ -1087,6 +1103,22 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
             </select>
           </div>
 
+          {/* Temporal Scrubber Toggle Button */}
+          <button
+            onClick={() => setShowTemporalBar((prev) => !prev)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs ${
+              startDate || endDate
+                ? "bg-amber-600 text-white border-amber-600 shadow-amber-200"
+                : showTemporalBar
+                ? "bg-slate-100 text-slate-800 border-slate-300"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Toggle Date-Range Temporal Scrubber"
+          >
+            <SlidersHorizontal className="w-3 h-3 text-amber-500" />
+            <span>Temporal {startDate || endDate ? "(Active)" : ""}</span>
+          </button>
+
           {/* Sync Button */}
           <button
             onClick={() => fetchLiveGraph(false)}
@@ -1122,6 +1154,88 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Temporal Date-Range Scrubber Bar */}
+      {showTemporalBar && (
+        <div className="mt-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2 border border-slate-800 shadow-xs animate-in fade-in duration-150 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1">
+              <SlidersHorizontal className="w-3 h-3 text-amber-400" />
+              Temporal Filter:
+            </span>
+            <div className="flex items-center gap-1.5 text-xs">
+              <label className="text-[10px] text-slate-400 font-medium">From:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-white text-xs px-2 py-0.5 rounded outline-none font-mono focus:border-amber-400"
+              />
+              <label className="text-[10px] text-slate-400 font-medium">To:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-white text-xs px-2 py-0.5 rounded outline-none font-mono focus:border-amber-400"
+              />
+            </div>
+          </div>
+
+          {/* Quick Preset Buttons & Action Controls */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => {
+                setStartDate("2024-01-01");
+                setEndDate("2024-03-31");
+                fetchLiveGraph(false, "2024-01-01", "2024-03-31");
+              }}
+              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-slate-700 cursor-pointer"
+            >
+              Q1 2024
+            </button>
+            <button
+              onClick={() => {
+                setStartDate("2024-04-01");
+                setEndDate("2024-06-30");
+                fetchLiveGraph(false, "2024-04-01", "2024-06-30");
+              }}
+              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-slate-700 cursor-pointer"
+            >
+              Q2 2024
+            </button>
+            <button
+              onClick={() => {
+                setStartDate("2024-07-01");
+                setEndDate("2024-09-30");
+                fetchLiveGraph(false, "2024-07-01", "2024-09-30");
+              }}
+              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-slate-300 border border-slate-700 cursor-pointer"
+            >
+              Q3 2024
+            </button>
+            <button
+              onClick={() => {
+                fetchLiveGraph(false, startDate, endDate);
+              }}
+              className="px-2.5 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold cursor-pointer transition-colors"
+            >
+              Apply Filter
+            </button>
+            {(startDate || endDate) && (
+              <button
+                onClick={() => {
+                  setStartDate("");
+                  setEndDate("");
+                  fetchLiveGraph(false, "", "");
+                }}
+                className="px-2 py-0.5 rounded bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 text-[10px] font-bold border border-rose-500/40 cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Canvas Area (Centerpiece of the Screen) */}
       <div className="relative flex-1 min-h-0 mt-2 rounded-xl border border-slate-200 bg-[#f8fafc] overflow-hidden enterprise-grid-light shadow-2xs">
@@ -1401,6 +1515,20 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
                   <span className="text-slate-500 font-medium">Analytical Confidence:</span>
                   <span className="font-mono font-extrabold text-blue-700">89.4% (0.89)</span>
                 </div>
+
+                {/* Generate AI Briefing Button */}
+                {onOpenBriefing && (
+                  <button
+                    onClick={() => {
+                      const entityTarget = selectedItem.data.displayName || selectedItem.data.label || selectedItem.data.name || selectedItem.data.id;
+                      onOpenBriefing(entityTarget);
+                    }}
+                    className="w-full mt-2 py-1.5 px-3 rounded-lg bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all active:scale-98"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+                    <span>Synthesize AI Briefing Dossier</span>
+                  </button>
+                )}
 
                 {/* Human Verification Legal Notice */}
                 <div className="mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200/80 text-[10px] text-amber-900 font-medium leading-relaxed">

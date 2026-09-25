@@ -29,6 +29,31 @@ SCHEMA_STATEMENTS = [
     """
     CREATE INDEX index_call_timestamp IF NOT EXISTS
     FOR ()-[r:CALLED]-() ON (r.timestamp)
+    """,
+    # Index on PhoneNumber first_seen_date for Evasion Detection
+    """
+    CREATE INDEX index_phone_first_seen_date IF NOT EXISTS
+    FOR (p:PhoneNumber) ON (p.first_seen_date)
+    """,
+    # Index on Call date for Temporal Scrubber
+    """
+    CREATE INDEX index_call_date IF NOT EXISTS
+    FOR ()-[r:CALLED]-() ON (r.date)
+    """,
+    # Index on Transfer timestamp for Temporal Scrubber
+    """
+    CREATE INDEX index_transfer_timestamp IF NOT EXISTS
+    FOR ()-[r:TRANSFERRED_TO]-() ON (r.timestamp)
+    """,
+    # Index on Location city
+    """
+    CREATE INDEX index_location_city IF NOT EXISTS
+    FOR (l:Location) ON (l.city)
+    """,
+    # Index on Vehicle registration_no
+    """
+    CREATE INDEX index_vehicle_registration IF NOT EXISTS
+    FOR (v:Vehicle) ON (v.registration_no)
     """
 ]
 

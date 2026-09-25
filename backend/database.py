@@ -22,10 +22,14 @@ class Neo4jDatabase:
             try:
                 self._driver = GraphDatabase.driver(
                     settings.NEO4J_URI,
-                    auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD)
+                    auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD),
+                    max_connection_lifetime=300,
+                    max_connection_pool_size=50,
+                    connection_acquisition_timeout=10.0,
+                    keep_alive=True
                 )
                 self.verify_connectivity()
-                logger.info("Successfully connected to Neo4j database.")
+                logger.info("Successfully connected to Neo4j database with pooled driver.")
             except Exception as e:
                 logger.error(f"Failed to connect to Neo4j at {settings.NEO4J_URI}: {e}")
                 raise e

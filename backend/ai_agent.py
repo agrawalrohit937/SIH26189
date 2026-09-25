@@ -170,17 +170,18 @@ Provide a professional, tactical investigative analysis:"""
         )
 
     try:
-        client = Groq(api_key=settings.GROQ_API_KEY)
+        client = Groq(api_key=settings.GROQ_API_KEY, timeout=8.0)
         logger.info(f"Dispatching query to Groq LLM: {user_message[:60]}...")
+        model_name = getattr(settings, "GROQ_MODEL", "llama-3.1-8b-instant") or "llama-3.1-8b-instant"
 
         response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message}
             ],
             temperature=0.15,
-            max_tokens=750,
+            max_tokens=600,
         )
 
         reply = response.choices[0].message.content

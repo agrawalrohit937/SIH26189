@@ -165,10 +165,15 @@
 
 ### 6.6 Production Scale Benchmark (2,500 Nodes)
 - **Synthetic Topology:** 2,500 nodes, 4,743 edges across 10 syndicates.
-- **Ingestion & Batch Prep:** 39.23 ms.
+- **Ingestion Time Breakdown:**
+  - Local CSV parsing & batch dict construction: **9.35 ms**
+  - Cloud Neo4j Aura UNWIND network round-trip write: **354.81 ms**
+  - Total end-to-end ingestion: **364.16 ms**
 - **Hybrid Entity Resolution:** 2,500 entities across 14 phonetic blocks in 160.34 ms (Throughput: 15,592 entities/sec; 0.064 ms/entity).
 - **GAT Link Prediction:** 10 epochs training + full forward inference on 2,500 nodes in 8.398s (839.76 ms/epoch).
-- **Copilot Grounded Query Latency:** P50 Median = 4.10s, P95 = 56.12s.
+- **Copilot Grounded Query Latency (Before vs After Optimization):**
+  - **Old (Unpooled 3x Serial Queries):** P50 = **4.10 s**, P95 = **56.12 s**
+  - **New (Connection-Pooled Unified Query):** P50 = **2.65 s**, P95 = **2.91 s** (**94.8% reduction in P95 latency**)
 
 ### 6.7 Consolidated Automated Pytest Suite (`pytest backend/tests/ -v`)
 ```
@@ -191,7 +196,27 @@ backend/tests/test_acceptance.py::test_09_audit_trail_hash_chain_integrity PASSE
 backend/tests/test_acceptance.py::test_10_officer_briefing_generation PASSED [ 90%]
 backend/tests/test_acceptance.py::test_11_rbac_and_purge_zero_count PASSED [100%]
 
-======================= 11 passed, 4 warnings in 32.42s =======================
+======================= 11 passed, 4 warnings in 27.00s =======================
 ```
+
+---
+
+## 7. Demo Day Hardening & UI Surface Completeness
+
+### 7.1 Frontend UI Coverage Audit
+1. **GAT Predicted Links Panel (`GATLinkPredictionPanel.tsx`):** Renders predicted edges with confidence scores (e.g. 89.4%), attention justifications, and active learning Confirm/Reject buttons wired to `POST /api/v1/intelligence/feedback`.
+2. **Evasion Alerts (`IntelligenceAlertsPanel.tsx`):** Dual-tab interface cleanly separating Financial Structuring (amber) and Burner SIM Cycling (crimson/purple) with IMEI, velocity windows, and first-seen dates.
+3. **Geo-Intelligence Map (`GeoIntelligenceModal.tsx`):** Interactive OpenStreetMap Leaflet map displaying 6 jurisdiction hubs (Delhi, Mumbai, Kolkata, Hyderabad, Ahmedabad, Bengaluru) and BTS cell towers, with suspect click-throughs to dossiers.
+4. **Temporal Scrubber (`NetworkGraphPanel.tsx`):** Integrated date-range controls and presets above Cytoscape graph calling `GET /api/v1/graph/topology?start_date=...&end_date=...`.
+5. **Briefing Generator (`BriefingGeneratorModal.tsx`):** 1-click dossier synthesis from top navbar or entity drawer calling `POST /api/v1/intelligence/generate-briefing` with copy/print export.
+6. **RBAC Login Switcher (`AuthLoginModal.tsx`):** 1-click role switcher in header for Investigator (PII masked), Supervisor, and Admin (full purge rights).
+
+### 7.2 Demo Credentials Quick Reference
+| Role | Username | Password | Access Level |
+| :--- | :--- | :--- | :--- |
+| **Investigator** | `investigator` | `investigator123` | Masked PII (`+91-XXXXX-9522`), Read-Only, Purge Blocked (403) |
+| **Supervisor** | `supervisor` | `supervisor123` | Unmasked PII, GAT Active Learning Confirmation, Case Briefings |
+| **Admin** | `admin` | `admin123` | Full Access, System Audit Verification, Purge Database (200) |
+
 
 

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Groq Settings
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.1-8b-instant"
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
 
     # Application Settings
     APP_NAME: str = "Criminal Network Analysis System (SIH26189)"

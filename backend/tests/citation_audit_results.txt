@@ -1,0 +1,30 @@
+TOTAL MATCHES FOUND: 28
+
+PROJECT_COMPREHENSIVE_OVERVIEW.md:172 -> > **Legal Note:** The ₹49,000–₹49,999 parameter is a *Demo-configurable structuring threshold (not a literal citation of PMLA Section 12 or the ₹10,00,000 statutory CTR limit under FIU-IND rules).*
+PROJECT_STATUS.md:43 -> - Fully compliant legal phrasing: *Demo-configurable structuring threshold (not a literal citation of PMLA Section 12 or the ₹10,00,000 statutory CTR limit under FIU-IND rules).*
+PROJECT_STATUS.md:78 -> - **Ripgrep Query:** `rg -i "50,000" e:\SIH26189`
+PROJECT_STATUS.md:79 -> - **Result:** `0 matches found`. All occurrences standardized to demo-configurable threshold wording (distinct from statutory ₹10,00,000 CTR limits).
+PROJECT_STATUS.md:147 -> - Code convention header added to all alert generation services and prompt rules forbidding LLM/heuristic fabrication of statutory section numbers.
+PROJECT_STATUS.md:148 -> - Replaced fabricated "Rule 4(1)(d)" citation with generic, defensible pattern descriptions.
+System_Architecture_and_Audit.md:57 -> │   • CoSE Physics Simulation               │   │         • CTR Structuring Velocity Traversal     │
+System_Architecture_and_Audit.md:183 -> - **Cash Transaction Reporting (CTR) & High-Value Scrutiny:** Transactions structured right below threshold boundaries (e.g., ₹49,000 to ₹49,999) are flagged as structuring/smurfing patterns under demo-configurable thresholds [Demo-configurable structuring threshold (not a literal citation of PMLA Section 12 or the ₹10,00,000 statutory CTR limit under FIU-IND rules)].
+System_Architecture_and_Audit.md:190 -> > For demo visibility and test file compatibility, the ₹49,000–₹49,999 band with 5-day velocity window is utilized as a **Demo Configurable Structuring Threshold**, accurately documented across the UI to avoid misrepresenting literal PMLA §10 Lakh CTR reporting limits.
+System_Architecture_and_Audit.md:292 -> nodeRepulsion: (node: any) => 650000,    // High repulsion pushes clusters into 2D radial expansion
+backend\ai_agent.py:7 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\ai_agent.py:155 -> 5. LEGAL CITATION POLICY: NEVER invent, fabricate, or guess legal rule numbers, section numbers, or act citations. If discussing evasion or money laundering, describe the operational pattern without fabricating unverified law sections.
+backend\generate_synthetic_data.py:246 -> SECTIONS OF LAW: IPC 420, 120-B, IT ACT 66-D, PMLA SEC 3/4
+backend\services\briefing_generator.py:22 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\services\briefing_generator.py:112 -> "4. DO NOT invent, fabricate, or extrapolate any legal section numbers, statutory rules, or unverified claims.\n"
+backend\services\briefing_generator.py:175 -> briefing_markdown += "- Immediate CDR preservation request for all linked communication nodes.\n- Section 91 CrPC / Section 94 BNSS notice issuance for beneficiary bank accounts.\n"
+backend\services\document_rag.py:25 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\services\evasion_detection.py:7 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\services\gat_link_prediction.py:7 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\services\graph_intelligence.py:7 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\services\graph_intelligence.py:20 -> Demo-configurable structuring threshold (not a literal citation of statutory CTR limits under FIU-IND rules).
+backend\services\nlp_extraction.py:14 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\services\nlp_extraction.py:25 -> Robust rule-based intelligence extraction from FIR text.
+backend\services\nlp_extraction.py:238 -> logger.warning(f"Groq LLM extraction failed ({e}). Falling back to dynamic rule-based extractor.")
+backend\services\nlp_extraction.py:240 -> # Dynamic rule-based fallback if LLM was unavailable or failed
+backend\services\nlp_extraction.py:242 -> logger.info("Executing dynamic rule-based intelligence extraction from FIR text...")
+backend\services\ocr_ingestion.py:25 -> # Do not add specific legal citations (rule numbers, section numbers, thresholds
+backend\tests\run_citation_sweep.py:11 -> r'\bIT Act\b',
