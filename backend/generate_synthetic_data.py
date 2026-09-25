@@ -268,7 +268,7 @@ Intelligence confirmed structured fund layering between accounts {suspect_1["acc
     with open("FIR_Case_992.txt", "w", encoding="utf-8") as f:
         f.write(fir_content)
     print("[+] Generated FIR_Case_992.txt")
-    print("[✔] Compact, unified syndicate dataset generated successfully!")
+    print("[OK] Compact, unified syndicate dataset generated successfully!")
 
 
 if __name__ == "__main__":

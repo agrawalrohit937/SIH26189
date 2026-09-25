@@ -113,7 +113,7 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
               <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
                 Financial Intelligence Alerts
               </h2>
-              <p className="text-[10px] text-slate-500">Sub-₹50,000 threshold smurfing evasion</p>
+              <p className="text-[10px] text-slate-500">Demo-configurable structuring evasion detection</p>
             </div>
           </div>
 
@@ -141,9 +141,9 @@ export const IntelligenceAlertsPanel: React.FC<IntelligenceAlertsPanelProps> = (
       <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 flex items-start gap-2.5 text-xs shadow-2xs">
         <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
         <div className="text-[11px] text-amber-950 leading-relaxed">
-          <span className="font-bold text-amber-900">Structuring Rule: </span>
+          <span className="font-bold text-amber-900">Pattern Detection: </span>
           <span className="text-amber-800">
-            Traverses micro-transfers in range <strong className="text-amber-950 font-bold">₹49,000–₹49,999</strong> to evade mandatory ₹50,000 FIU reporting limits.
+            Traverses repeated micro-transfers in the range <strong className="text-amber-950 font-bold">₹49,000–₹49,999</strong> within short windows to identify structured financial evasion.
           </span>
         </div>
       </div>

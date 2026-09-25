@@ -866,24 +866,63 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     }
   }, [refreshTrigger, fetchLiveGraph]);
 
-  // Handle Fullscreen Toggle
-  const handleToggleFullscreen = () => {
-    setIsFullscreen((prev) => {
-      const nextState = !prev;
+  // Handle Fullscreen Toggle with Native HTML5 Fullscreen API + Fallback
+  const handleToggleFullscreen = async () => {
+    try {
+      const isNativeActive = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      );
+
+      if (!isNativeActive && !isFullscreen) {
+        if (panelRef.current?.requestFullscreen) {
+          await panelRef.current.requestFullscreen();
+        } else if ((panelRef.current as any)?.webkitRequestFullscreen) {
+          await (panelRef.current as any).webkitRequestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.warn("Fullscreen toggle notice:", err);
+      setIsFullscreen((prev) => !prev);
+    } finally {
+      setTimeout(() => {
+        if (cyRef.current && !cyRef.current.destroyed()) {
+          cyRef.current.resize();
+          cyRef.current.fit(undefined, 60);
+        }
+      }, 250);
+    }
+  };
+
+  // Listen to native browser fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNative = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      );
+      setIsFullscreen(isNative);
       setTimeout(() => {
         if (cyRef.current && !cyRef.current.destroyed()) {
           cyRef.current.resize();
           cyRef.current.fit(undefined, 60);
         }
       }, 200);
-      return nextState;
-    });
-  };
+    };
 
-  // Keyboard ESC listener for fullscreen
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isFullscreen) {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
         setIsFullscreen(false);
         setTimeout(() => {
           if (cyRef.current && !cyRef.current.destroyed()) {
@@ -893,8 +932,16 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         }, 200);
       }
     };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isFullscreen]);
 
   const handleZoomIn = () => {
@@ -958,17 +1005,17 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className={`flex flex-col bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative font-sans transition-all duration-300 ${
+      className={`flex flex-col bg-white border border-slate-200 rounded-xl p-3 shadow-xs relative font-sans ${
         isFullscreen
-          ? "fixed inset-0 z-[100] w-screen h-screen rounded-none p-5 bg-[#f5f7fa]"
-          : "h-full"
+          ? "!fixed !inset-0 !top-0 !left-0 !right-0 !bottom-0 !z-[9999999] !w-screen !h-screen !max-w-none !max-h-none !m-0 !p-3.5 !bg-[#f1f5f9] !rounded-none !border-0 overflow-hidden"
+          : "h-full min-h-0"
       }`}
     >
       {/* Top Filter & Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 shrink-0">
         {/* Search Input */}
-        <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
-          <Search className="w-4 h-4 text-slate-400" />
+        <div className="flex items-center gap-1.5 flex-1 min-w-[170px] max-w-xs bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+          <Search className="w-3.5 h-3.5 text-slate-400" />
           <input
             type="text"
             placeholder="Search suspects, phone lines, accounts..."
@@ -979,10 +1026,10 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         </div>
 
         {/* Quick Filter Badges */}
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
+        <div className="flex items-center gap-1 text-xs font-semibold">
           <button
             onClick={() => setFilterType("ALL")}
-            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
               filterType === "ALL"
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100"
@@ -992,7 +1039,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           </button>
           <button
             onClick={() => setFilterType("Person")}
-            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
               filterType === "Person"
                 ? "bg-blue-700 text-white shadow-xs"
                 : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
@@ -1002,7 +1049,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           </button>
           <button
             onClick={() => setFilterType("PhoneNumber")}
-            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
               filterType === "PhoneNumber"
                 ? "bg-emerald-600 text-white shadow-xs"
                 : "bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100"
@@ -1012,7 +1059,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           </button>
           <button
             onClick={() => setFilterType("BankAccount")}
-            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            className={`px-2.5 py-0.5 rounded-lg transition-colors cursor-pointer ${
               filterType === "BankAccount"
                 ? "bg-blue-600 text-white shadow-xs"
                 : "bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100"
@@ -1023,20 +1070,20 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         </div>
 
         {/* Layout Switcher & Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Layout Selector */}
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-700 shadow-2xs">
-            <Layers className="w-3.5 h-3.5 text-slate-500 mr-1.5" />
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-xs text-slate-700 shadow-2xs">
+            <Layers className="w-3 h-3 text-slate-500 mr-1" />
             <select
               value={layoutName}
               onChange={(e) => setLayoutName(e.target.value)}
               className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
             >
               <option value="fcose">Force-Directed (Spacious)</option>
-              <option value="concentric">Concentric Hierarchy (Key Orbit)</option>
-              <option value="circle">Circular Cell Cluster</option>
-              <option value="breadthfirst">Top-Down Directed Flow</option>
-              <option value="grid">Structured Matrix</option>
+              <option value="concentric">Concentric (Orbit)</option>
+              <option value="circle">Circular Cell</option>
+              <option value="breadthfirst">Top-Down Flow</option>
+              <option value="grid">Matrix Grid</option>
             </select>
           </div>
 
@@ -1044,17 +1091,17 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           <button
             onClick={() => fetchLiveGraph(false)}
             disabled={isLoadingGraph}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white active:scale-95 text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white active:scale-95 text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
             title="Fetch and sync live graph from Neo4j"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingGraph ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3 h-3 ${isLoadingGraph ? "animate-spin" : ""}`} />
             <span>Sync</span>
           </button>
 
           {/* Fullscreen Toggle Button */}
           <button
             onClick={handleToggleFullscreen}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-xs ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs ${
               isFullscreen
                 ? "bg-slate-900 text-white border-slate-900"
                 : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -1063,12 +1110,12 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           >
             {isFullscreen ? (
               <>
-                <Minimize2 className="w-3.5 h-3.5 text-amber-300" />
+                <Minimize2 className="w-3 h-3 text-amber-300" />
                 <span>Exit Fullscreen</span>
               </>
             ) : (
               <>
-                <Maximize2 className="w-3.5 h-3.5 text-blue-600" />
+                <Maximize2 className="w-3 h-3 text-blue-600" />
                 <span>Fullscreen</span>
               </>
             )}
@@ -1077,9 +1124,9 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       </div>
 
       {/* Main Canvas Area (Centerpiece of the Screen) */}
-      <div className="relative flex-1 mt-3 rounded-xl border border-slate-200 bg-[#fafcff] overflow-hidden enterprise-grid-light shadow-xs">
+      <div className="relative flex-1 min-h-0 mt-2 rounded-xl border border-slate-200 bg-[#f8fafc] overflow-hidden enterprise-grid-light shadow-2xs">
         {/* Subtle India Map Silhouette & Geographic Intelligence Watermark */}
-        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-[0.055] select-none">
+        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-[0.04] select-none">
           <svg
             viewBox="0 0 600 700"
             className="w-full h-full max-w-[620px] max-h-[680px] text-slate-900"

@@ -11,13 +11,13 @@ SUSPECT INTELLIGENCE:
    Account: 9465835587
    Role: Kingpin / Syndicate Lead
 
-2. Accused: YAHVI KALA (Canonical: Yahvi Kala)
-   Alias: Yahvi Kala
+2. Accused: Y. Kala (Canonical: Yahvi Kala)
+   Alias: Yahvi K.
    Phone: 9835942492
    Account: 1691775673
    Role: Financial Mule Coordinator
 
-3. Associate: W. Raval (Canonical: William Raval)
+3. Associate: William Raval (Canonical: William Raval)
    Phone: 9825954738
    Role: Regional Dispatcher
 

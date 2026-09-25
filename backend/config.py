@@ -11,16 +11,18 @@ class Settings(BaseSettings):
 
     # Groq Settings
     GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
 
     # Application Settings
     APP_NAME: str = "Criminal Network Analysis System (SIH26189)"
     DEBUG: bool = False
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=os.path.join(os.path.dirname(__file__), ".env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
 
 
 @lru_cache()

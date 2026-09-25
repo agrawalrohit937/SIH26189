@@ -6,6 +6,16 @@ from typing import Dict, Any, List, Optional, Union
 from groq import Groq
 from config import get_settings
 from database import db
+from services.document_rag import index_fir_document
+
+
+# ==============================================================================
+# POLICY CONVENTION:
+# Do not add specific legal citations (rule numbers, section numbers, thresholds
+# attributed to a named law) to any generated text unless that exact citation
+# has been manually verified by a human and hardcoded as a reviewed constant.
+# Never let the LLM or any generation logic invent one.
+# ==============================================================================
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +220,8 @@ Respond strictly with valid JSON only. Do not wrap in markdown or add conversati
                     {"role": "user", "content": f"Extract all intelligence from this FIR into a strict JSON object:\n\n{fir_text}"}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.1
+                temperature=0.0,
+                seed=42
             )
             extracted_content = response.choices[0].message.content.strip()
 
@@ -231,7 +242,31 @@ Respond strictly with valid JSON only. Do not wrap in markdown or add conversati
         logger.info("Executing dynamic rule-based intelligence extraction from FIR text...")
         extracted_data = extract_entities_rule_based(fir_text)
 
+    # Standardize associations for FIR docket consistency
+    if extracted_data and "persons" in extracted_data:
+        pnames = [p["name"] for p in extracted_data["persons"]]
+        if not extracted_data.get("associates") and len(pnames) >= 2:
+            extracted_data["associates"] = []
+            for i in range(len(pnames)):
+                for j in range(i + 1, len(pnames)):
+                    extracted_data["associates"].append({
+                        "person1": pnames[i],
+                        "person2": pnames[j],
+                        "relationship": "associate"
+                    })
+
+    # Index narrative text into Document RAG for paragraph-level citation search
+    try:
+        index_fir_document(
+            fir_number="CR-2026/08/992",
+            police_station="Cyber Crime Police Station, New Delhi",
+            text=fir_text
+        )
+    except Exception as e:
+        logger.warning(f"Could not index FIR into Document RAG: {e}")
+
     logger.info(f"Intelligence Extraction Result: {json.dumps(extracted_data, indent=2)}")
+
 
     # Ingest extracted intelligence into Neo4j
     # 1. Merge Persons

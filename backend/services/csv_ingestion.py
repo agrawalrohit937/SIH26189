@@ -66,6 +66,14 @@ def ingest_cdr_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Data
 
     logger.info(f"Ingesting CDR Data from: {source_label} ({len(df)} rows)")
 
+    # Validate required CDR schema columns
+    has_caller = any(c in df.columns for c in ['caller_number', 'caller', 'calling_number', 'from_number', 'caller_msisdn', 'source', 'from'])
+    has_receiver = any(c in df.columns for c in ['receiver_number', 'receiver', 'called_number', 'to_number', 'receiver_msisdn', 'destination', 'to'])
+    if not has_caller or not has_receiver:
+        raise ValueError(
+            f"Invalid CDR CSV schema: Missing required column headers. Expected caller (e.g. 'caller_number') and receiver (e.g. 'receiver_number'). Found columns: {list(df.columns)}"
+        )
+
     # Map possible column header aliases
     def get_col(candidates: List[str], default_val="") -> pd.Series:
         for cand in candidates:
@@ -157,6 +165,14 @@ def ingest_bank_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Dat
     df = _normalize_col_names(df)
 
     logger.info(f"Ingesting Bank Transactions from: {source_label} ({len(df)} rows)")
+
+    # Validate required Bank schema columns
+    has_sender = any(c in df.columns for c in ['sender_account', 'sender_acc', 'from_account', 'payer_account', 'debit_account', 'account_from', 'sender_account_no', 'sender_name', 'sender'])
+    has_receiver = any(c in df.columns for c in ['receiver_account', 'receiver_acc', 'to_account', 'payee_account', 'credit_account', 'account_to', 'receiver_account_no', 'receiver_name', 'receiver'])
+    if not has_sender or not has_receiver:
+        raise ValueError(
+            f"Invalid Bank CSV schema: Missing required column headers. Expected sender (e.g. 'sender_account') and receiver (e.g. 'receiver_account'). Found columns: {list(df.columns)}"
+        )
 
     def get_col(candidates: List[str], default_val="") -> pd.Series:
         for cand in candidates:

@@ -26,7 +26,9 @@ import {
   ShieldAlert,
   X,
   Sparkles,
-  Bot
+  Bot,
+  Maximize,
+  Minimize
 } from "lucide-react";
 import { DataIngestionPanel } from "@/components/DataIngestionPanel";
 import { NetworkGraphPanel } from "@/components/NetworkGraphPanel";
@@ -62,6 +64,30 @@ export default function DashboardPage() {
   // Triggers for syncing or wiping child panels (-1 means wiped/empty)
   const [graphRefreshTrigger, setGraphRefreshTrigger] = useState<number>(-1);
   const [alertsRefreshTrigger, setAlertsRefreshTrigger] = useState<number>(-1);
+  const [isAppFullscreen, setIsAppFullscreen] = useState<boolean>(false);
+
+  // App-level fullscreen toggle
+  const toggleAppFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        setIsAppFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsAppFullscreen(false);
+      }
+    } catch (err) {
+      console.warn("App fullscreen toggle error:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsAppFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
 
   const checkBackendHealth = useCallback(async () => {
     try {
@@ -187,64 +213,64 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f7fa] text-slate-900 font-sans">
-      {/* 🇮🇳 National Tricolor Accent Bar (Subtle 3.5px Institutional Stripe) */}
+    <div className="h-screen max-h-screen flex flex-col bg-[#f5f7fa] text-slate-900 font-sans overflow-hidden select-none">
+      {/* 🇮🇳 National Tricolor Accent Bar (Subtle 3px Institutional Stripe) */}
       <div className="w-full tricolor-bar shrink-0" />
 
       {/* Institutional Intelligence Header Banner */}
-      <header className="px-4 sm:px-6 pt-3 pb-2">
-        <div className="max-w-[1920px] mx-auto rounded-2xl bg-gradient-to-r from-[#0a2540] via-[#0f3460] to-[#0a2540] text-white p-4 sm:p-5 shadow-md flex flex-wrap items-center justify-between gap-4 border border-[#1e3a66]/40">
+      <header className="px-3 sm:px-4 pt-2 pb-1.5 shrink-0">
+        <div className="max-w-[1920px] mx-auto rounded-xl bg-gradient-to-r from-[#0a2540] via-[#0f3460] to-[#0a2540] text-white px-3.5 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-3 border border-[#1e3a66]/40">
           {/* Left: Institutional Emblem & National Title */}
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-xs shrink-0">
-              <Shield className="w-6 h-6 text-blue-200" />
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-xs shrink-0">
+              <Shield className="w-5 h-5 text-blue-200" />
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold tracking-widest uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
+                <span className="text-[9px] font-extrabold tracking-widest uppercase bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/30 leading-none">
                   SIH 2026 • MINISTRY OF HOME AFFAIRS
                 </span>
               </div>
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-white font-sans uppercase mt-0.5">
+              <h1 className="text-base sm:text-lg font-black tracking-tight text-white font-sans uppercase mt-0.5 leading-tight">
                 National Crime Intelligence Grid
               </h1>
-              <p className="text-xs text-blue-200/90 font-medium">
+              <p className="text-[11px] text-blue-200/90 font-medium leading-none hidden sm:block">
                 AI-Powered Investigation &amp; Network Intelligence
               </p>
             </div>
           </div>
 
           {/* Right: Action Controls & Copilot Branding */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-right hidden md:block border-r border-white/20 pr-4">
-              <span className="text-xs font-bold text-white uppercase tracking-wide block">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-right hidden xl:block border-r border-white/20 pr-3">
+              <span className="text-[11px] font-bold text-white uppercase tracking-wide block leading-tight">
                 AI Investigator's Co-Pilot
               </span>
-              <span className="text-[11px] text-blue-200">
-                From fragmented data to actionable intelligence
+              <span className="text-[10px] text-blue-200 leading-tight block">
+                Evidence-driven decision support
               </span>
             </div>
 
             {/* Evidence Intake Modal Button */}
             <button
               onClick={() => setShowIngestionModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
             >
-              <UploadCloud className="w-4 h-4" />
+              <UploadCloud className="w-3.5 h-3.5" />
               <span>Evidence Intake</span>
             </button>
 
             {/* Financial Intelligence Alerts Modal Button */}
             <button
               onClick={() => setShowAlertsModal(true)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer ${
                 activeAlertCount > 0
                   ? "bg-rose-600 hover:bg-rose-500 text-white animate-pulse"
                   : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
               }`}
             >
-              <ShieldAlert className="w-4 h-4" />
+              <ShieldAlert className="w-3.5 h-3.5" />
               <span>Alerts ({activeAlertCount})</span>
             </button>
 
@@ -252,154 +278,168 @@ export default function DashboardPage() {
             <button
               onClick={handlePurgeDatabase}
               disabled={isPurging}
-              className="p-2 rounded-xl bg-white/10 hover:bg-rose-600/80 text-white border border-white/20 transition-all cursor-pointer disabled:opacity-50"
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-rose-600/80 text-white border border-white/20 transition-all cursor-pointer disabled:opacity-50"
               title="Purge session database"
             >
               {isPurging ? (
-                <Loader2 className="w-4 h-4 animate-spin text-rose-300" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-300" />
               ) : (
-                <RotateCcw className="w-4 h-4 text-rose-300 hover:text-white" />
+                <RotateCcw className="w-3.5 h-3.5 text-rose-300 hover:text-white" />
               )}
             </button>
 
             {/* Privacy Mode: Ephemeral Session */}
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-xs text-emerald-200">
-              <Shield className="w-3.5 h-3.5 text-emerald-300" />
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-[11px] text-emerald-200">
+              <Shield className="w-3 h-3 text-emerald-300" />
               <span className="font-semibold">Privacy: Ephemeral</span>
             </div>
 
             {/* System Status */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/20 text-[11px]">
               {backendStatus === "online" ? (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span className="text-emerald-300 font-bold">ONLINE</span>
                 </>
               ) : (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-rose-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
                   <span className="text-rose-300 font-bold">OFFLINE</span>
                 </>
               )}
             </div>
+
+            {/* Fullscreen App Toggle */}
+            <button
+              onClick={toggleAppFullscreen}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 text-[11px] font-bold transition-all cursor-pointer shadow-xs"
+              title={isAppFullscreen ? "Exit App Fullscreen (ESC)" : "Expand App to Full Screen"}
+            >
+              {isAppFullscreen ? (
+                <>
+                  <Minimize className="w-3 h-3 text-amber-300" />
+                  <span className="hidden sm:inline">Exit Fullscreen</span>
+                </>
+              ) : (
+                <>
+                  <Maximize className="w-3 h-3 text-blue-200" />
+                  <span className="hidden sm:inline">Full Screen</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main 3-Column Content Layout */}
-      <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 py-3 grid grid-cols-12 gap-4">
+      {/* Main 3-Column Content Layout (Single-Screen Viewport Constrained) */}
+      <main className="flex-1 min-h-0 max-w-[1920px] w-full mx-auto px-3 sm:px-4 py-1.5 grid grid-cols-12 gap-3 overflow-hidden">
         {/* ========================================================================= */}
         {/* LEFT COLUMN: NETWORK ENTITIES + INTELLIGENCE INSIGHTS (Span 3) */}
         {/* ========================================================================= */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-3.5">
-          {/* 1. NETWORK ENTITIES (Clean White Card) */}
-          <div className="rounded-2xl bg-white border border-slate-200 p-4.5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
-                  <Network className="w-3.5 h-3.5" />
+        <div className="col-span-12 lg:col-span-3 flex flex-col gap-2.5 h-full min-h-0 overflow-hidden">
+          {/* 1. NETWORK ENTITIES (Clean Compact Card) */}
+          <div className="rounded-xl bg-white border border-slate-200 p-3 shadow-xs space-y-2 shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
+                  <Network className="w-3 h-3" />
                 </div>
                 <h2 className="text-xs font-black text-slate-900 uppercase tracking-wide">
                   Network Entities
                 </h2>
               </div>
-              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+              <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">
                 {graphStats.totalNodes} TOTAL
               </span>
             </div>
 
-            <div className="space-y-2.5 text-xs font-medium">
+            <div className="grid grid-cols-1 gap-1.5 text-xs font-medium">
               {/* Persons Row */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/60 transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0">
-                    <Users className="w-4 h-4" />
+              <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-slate-50/80 border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0">
+                    <Users className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 block leading-tight">Persons</span>
-                    <span className="text-[10px] text-slate-500">Suspects &amp; Associates</span>
+                    <span className="font-bold text-slate-900 block leading-tight text-xs">Persons</span>
+                    <span className="text-[9px] text-slate-500 leading-none block">Suspects &amp; Associates</span>
                   </div>
                 </div>
-                <span className="text-sm font-extrabold text-slate-900 font-mono">
+                <span className="text-xs font-extrabold text-slate-900 font-mono">
                   {graphStats.persons || 0}
                 </span>
               </div>
 
               {/* Telecom IDs Row */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/60 transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
-                    <Phone className="w-4 h-4" />
+              <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-slate-50/80 border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+                    <Phone className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 block leading-tight">Telecom IDs</span>
-                    <span className="text-[10px] text-slate-500">CDR Phone Lines</span>
+                    <span className="font-bold text-slate-900 block leading-tight text-xs">Telecom IDs</span>
+                    <span className="text-[9px] text-slate-500 leading-none block">CDR Phone Lines</span>
                   </div>
                 </div>
-                <span className="text-sm font-extrabold text-slate-900 font-mono">
+                <span className="text-xs font-extrabold text-slate-900 font-mono">
                   {graphStats.phones || 0}
                 </span>
               </div>
 
               {/* Financial Accounts Row */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/60 transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0">
-                    <CreditCard className="w-4 h-4" />
+              <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-slate-50/80 border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0">
+                    <CreditCard className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 block leading-tight">Financial Accounts</span>
-                    <span className="text-[10px] text-slate-500">Bank Accounts &amp; Mules</span>
+                    <span className="font-bold text-slate-900 block leading-tight text-xs">Financial Accounts</span>
+                    <span className="text-[9px] text-slate-500 leading-none block">Bank Accounts &amp; Mules</span>
                   </div>
                 </div>
-                <span className="text-sm font-extrabold text-slate-900 font-mono">
+                <span className="text-xs font-extrabold text-slate-900 font-mono">
                   {graphStats.accounts || 0}
                 </span>
               </div>
 
-              {/* Vehicles / Mule Carriers Row */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/60 transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
-                    <Car className="w-4 h-4" />
+              {/* Vehicles & Locations in 2-column micro row */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-slate-50/80 border border-slate-100">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                      <Car className="w-3 h-3" />
+                    </div>
+                    <span className="font-bold text-slate-800 text-[10px]">Vehicles</span>
                   </div>
-                  <div>
-                    <span className="font-bold text-slate-900 block leading-tight">Vehicles / Carriers</span>
-                    <span className="text-[10px] text-slate-500">Transport &amp; Mules</span>
-                  </div>
+                  <span className="text-xs font-extrabold text-slate-900 font-mono">
+                    {graphStats.vehicles || 0}
+                  </span>
                 </div>
-                <span className="text-sm font-extrabold text-slate-900 font-mono">
-                  {graphStats.vehicles || 0}
-                </span>
-              </div>
 
-              {/* Locations / Towers Row */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/60 transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-700 shrink-0">
-                    <MapPin className="w-4 h-4" />
+                <div className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-slate-50/80 border border-slate-100">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-700 shrink-0">
+                      <MapPin className="w-3 h-3" />
+                    </div>
+                    <span className="font-bold text-slate-800 text-[10px]">Locations</span>
                   </div>
-                  <div>
-                    <span className="font-bold text-slate-900 block leading-tight">Locations / Towers</span>
-                    <span className="text-[10px] text-slate-500">Cell Sites &amp; Hubs</span>
-                  </div>
+                  <span className="text-xs font-extrabold text-slate-900 font-mono">
+                    {graphStats.locations || 0}
+                  </span>
                 </div>
-                <span className="text-sm font-extrabold text-slate-900 font-mono">
-                  {graphStats.locations || 0}
-                </span>
               </div>
             </div>
           </div>
 
-          {/* 2. INTELLIGENCE INSIGHTS (Clean White Card) */}
-          <div className="flex-1 rounded-2xl bg-white border border-slate-200 p-4.5 shadow-xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-slate-900 font-black text-xs mb-3 border-b border-slate-100 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <Lightbulb className="w-4 h-4 text-amber-600" />
+          {/* 2. INTELLIGENCE INSIGHTS (Clean Structured Card with Scroll if needed) */}
+          <div className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 p-3 shadow-xs flex flex-col justify-between overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between text-slate-900 font-black text-xs mb-2 border-b border-slate-100 pb-1.5 shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
                   <span className="uppercase tracking-wide">Intelligence Insights</span>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
                   graphStats.totalNodes > 0
                     ? "bg-emerald-50 border-emerald-300 text-emerald-800"
                     : "bg-slate-100 border-slate-200 text-slate-600"
@@ -408,65 +448,67 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {graphStats.totalNodes === 0 ? (
-                <ul className="space-y-2.5 text-xs text-slate-600 leading-relaxed font-medium">
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
-                    <span>Awaiting evidence intake: No active syndicate entities loaded.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
-                    <span>Upload CDR logs to map telecom frequency and call routes.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
-                    <span>Upload Bank CSV to detect mule accounts &amp; smurfing structuring.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
-                    <span>Upload FIR text to extract suspect aliases &amp; cross-links.</span>
-                  </li>
-                </ul>
-              ) : (
-                <ul className="space-y-2.5 text-xs text-slate-700 leading-relaxed font-medium">
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1.5" />
-                    <span>
-                      <strong>{graphStats.totalCommunities} network communities detected</strong> via Louvain clustering algorithm.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1.5" />
-                    <span>
-                      High-centrality coordinator: <strong className="text-slate-900">{graphStats.keySuspectName}</strong> links multiple phones and bank accounts.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600 shrink-0 mt-1.5" />
-                    <span>
-                      {activeAlertCount > 0
-                        ? `Potential hidden relationship: ${activeAlertCount} transaction chains flagged for structuring threshold evasion.`
-                        : "Potential hidden relationship: Cross-group bridging links identified between coordinators."}
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-1.5" />
-                    <span>
-                      Cross-region activity detected across Delhi NCR, Mumbai, and regional operational zones.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-600 shrink-0 mt-1.5" />
-                    <span>
-                      Financial &amp; telecom correlation: Multi-modal entity resolution resolved alias variants into canonical nodes.
-                    </span>
-                  </li>
-                </ul>
-              )}
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 text-xs text-slate-700 leading-relaxed font-medium">
+                {graphStats.totalNodes === 0 ? (
+                  <ul className="space-y-2 text-[11px] text-slate-600 leading-relaxed font-medium">
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                      <span>Awaiting evidence intake: No active syndicate entities loaded.</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                      <span>Upload CDR logs to map telecom frequency and call routes.</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                      <span>Upload Bank CSV to detect mule accounts &amp; smurfing structuring.</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                      <span>Upload FIR text to extract suspect aliases &amp; cross-links.</span>
+                    </li>
+                  </ul>
+                ) : (
+                  <ul className="space-y-2 text-[11px] text-slate-700 leading-relaxed font-medium">
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1" />
+                      <span>
+                        <strong>{graphStats.totalCommunities} network communities detected</strong> via Louvain clustering.
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1" />
+                      <span>
+                        High-centrality coordinator: <strong className="text-slate-900">{graphStats.keySuspectName}</strong> links telecom &amp; financial assets.
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-600 shrink-0 mt-1" />
+                      <span>
+                        {activeAlertCount > 0
+                          ? `Cross-community relationship & ${activeAlertCount} transaction series flagged for review.`
+                          : "Cross-community bridging links identified between coordinators."}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-1" />
+                      <span>
+                        Cross-region activity detected across synthetic operational zones.
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-600 shrink-0 mt-1" />
+                      <span>
+                        Multi-modal entity resolution resolved alias variants into canonical nodes.
+                      </span>
+                    </li>
+                  </ul>
+                )}
+              </div>
             </div>
 
-            <div className="mt-4 pt-2.5 border-t border-slate-100 text-[10px] text-slate-500 leading-tight">
-              <span>* AI intelligence insights represent investigative leads requiring manual corroboration.</span>
+            <div className="mt-2 pt-1.5 border-t border-slate-100 text-[9px] text-slate-500 leading-tight shrink-0">
+              <span>* AI intelligence leads require manual human corroboration.</span>
             </div>
           </div>
         </div>
@@ -474,7 +516,7 @@ export default function DashboardPage() {
         {/* ========================================================================= */}
         {/* CENTER COLUMN: Central Criminal Network Graph Canvas (Span 6) */}
         {/* ========================================================================= */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col h-[740px]">
+        <div className="col-span-12 lg:col-span-6 flex flex-col h-full min-h-0">
           <NetworkGraphPanel
             apiBaseUrl={API_BASE_URL}
             refreshTrigger={graphRefreshTrigger}
@@ -485,156 +527,147 @@ export default function DashboardPage() {
         {/* ========================================================================= */}
         {/* RIGHT COLUMN: Legend + AI INVESTIGATION ANALYSIS (Span 3) */}
         {/* ========================================================================= */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-3.5">
-          {/* 1. Legend Card (Clean White) */}
-          <div className="rounded-2xl bg-white border border-slate-200 p-4.5 shadow-xs space-y-2.5">
-            <h3 className="text-xs font-black text-slate-900 tracking-wide uppercase border-b border-slate-100 pb-2">
+        <div className="col-span-12 lg:col-span-3 flex flex-col gap-2.5 h-full min-h-0 overflow-hidden">
+          {/* 1. Legend Card (Clean Compact) */}
+          <div className="rounded-xl bg-white border border-slate-200 p-3 shadow-xs space-y-1.5 shrink-0">
+            <h3 className="text-xs font-black text-slate-900 tracking-wide uppercase border-b border-slate-100 pb-1">
               Visual Legend
             </h3>
 
-            <div className="space-y-2 text-xs text-slate-700 font-medium">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-700 font-medium">
               {/* Person (Key Suspect) */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-rose-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
-                  <Users className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-full bg-rose-600 flex items-center justify-center text-white shrink-0">
+                  <Users className="w-2.5 h-2.5" />
                 </div>
-                <span className="font-bold text-slate-900">Key Suspect / Coordinator</span>
+                <span className="font-bold text-slate-900 text-[10px]">Key Suspect</span>
               </div>
 
               {/* Person */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-blue-700 flex items-center justify-center text-white shrink-0 shadow-2xs">
-                  <Users className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-full bg-blue-700 flex items-center justify-center text-white shrink-0">
+                  <Users className="w-2.5 h-2.5" />
                 </div>
-                <span>Person / Associate</span>
+                <span className="text-[10px]">Associate</span>
               </div>
 
               {/* Phone Number */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
-                  <Phone className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0">
+                  <Phone className="w-2.5 h-2.5" />
                 </div>
-                <span>Telecom Phone Line</span>
+                <span className="text-[10px]">Phone Line</span>
               </div>
 
               {/* Bank Account */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-sky-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
-                  <CreditCard className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-full bg-sky-600 flex items-center justify-center text-white shrink-0">
+                  <CreditCard className="w-2.5 h-2.5" />
                 </div>
-                <span>Bank Account / Mules</span>
+                <span className="text-[10px]">Bank A/C</span>
               </div>
 
-              {/* Location / Cell Tower */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
-                  <MapPin className="w-3.5 h-3.5" />
+              {/* Location */}
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-full bg-purple-600 flex items-center justify-center text-white shrink-0">
+                  <MapPin className="w-2.5 h-2.5" />
                 </div>
-                <span>Location / Cell Tower Hub</span>
+                <span className="text-[10px]">Cell Site</span>
               </div>
 
-              {/* Vehicle / Carrier */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
-                  <Car className="w-3.5 h-3.5" />
+              {/* Vehicle */}
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-full bg-amber-600 flex items-center justify-center text-white shrink-0">
+                  <Car className="w-2.5 h-2.5" />
                 </div>
-                <span>Vehicle / Transport Mule</span>
+                <span className="text-[10px]">Vehicle</span>
               </div>
+            </div>
 
-              <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                {/* Solid Line */}
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 h-0.5 bg-slate-600 inline-block" />
-                  <span className="text-[11px]">Known / Verified Relationship</span>
-                </div>
-
-                {/* Dashed Line */}
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 h-0.5 border-b-2 border-dashed border-rose-500 inline-block" />
-                  <span className="text-rose-700 font-bold text-[11px]">Predicted / Flagged Relationship</span>
-                </div>
-
-                {/* Community patch */}
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 h-2.5 rounded bg-amber-100 border border-amber-300 inline-block" />
-                  <span className="text-[11px]">Syndicate Cell Boundary</span>
-                </div>
+            <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+              <div className="flex items-center gap-1">
+                <span className="w-3.5 h-0.5 bg-slate-600 inline-block" />
+                <span>Verified Link</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3.5 h-0.5 border-b-2 border-dashed border-rose-500 inline-block" />
+                <span className="text-rose-700 font-bold">Predicted Link</span>
               </div>
             </div>
           </div>
 
-          {/* 2. AI INVESTIGATION ANALYSIS (Clean Structured White Card) */}
-          <div className="flex-1 rounded-2xl bg-white border border-slate-200 p-4.5 shadow-xs flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-blue-700" />
+          {/* 2. AI INVESTIGATION ANALYSIS (5 Structured Sections) */}
+          <div className="flex-1 min-h-0 rounded-xl bg-white border border-slate-200 p-3 shadow-xs flex flex-col justify-between overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <BarChart3 className="w-3.5 h-3.5 text-blue-700" />
                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">
                     AI Investigation Analysis
                   </h3>
                 </div>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                  {graphStats.totalNodes > 0 ? "ANALYTICS ACTIVE" : "STANDBY"}
+                <span className="text-[9px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
+                  {graphStats.totalNodes > 0 ? "ACTIVE" : "STANDBY"}
                 </span>
               </div>
 
-              {/* 5 Structured Sub-Sections */}
-              <div className="space-y-3 text-xs">
+              {/* 5 Structured Sub-Sections with smooth scroll */}
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1 mt-2 space-y-2 text-xs">
                 {/* 1. Network Summary */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 block">
                     1. Network Summary
                   </span>
-                  <p className="text-slate-700 font-medium leading-relaxed">
+                  <p className="text-slate-700 font-medium text-[11px] leading-snug mt-0.5">
                     {graphStats.totalNodes > 0
                       ? `${graphStats.totalNodes} entities connected across ${graphStats.totalCommunities} detected communities.`
-                      : "No active syndicate topology in session. Awaiting evidence intake."}
+                      : "No active syndicate topology in session."}
                   </p>
                 </div>
 
                 {/* 2. Key Entities */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 block">
                     2. Key Entities
                   </span>
-                  <p className="text-slate-700 font-medium leading-relaxed">
+                  <p className="text-slate-700 font-medium text-[11px] leading-snug mt-0.5">
                     {graphStats.totalNodes > 0
-                      ? `"${graphStats.keySuspectName}" shows high centrality across telecom and financial relationships.`
-                      : "Centrality calculations will execute upon entity ingestion."}
+                      ? `"${graphStats.keySuspectName}" shows high centrality across telecom and financial links.`
+                      : "Centrality calculations execute on ingestion."}
                   </p>
                 </div>
 
                 {/* 3. Suspicious Connections */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 block">
                     3. Suspicious Connections
                   </span>
-                  <p className="text-slate-700 font-medium leading-relaxed">
+                  <p className="text-slate-700 font-medium text-[11px] leading-snug mt-0.5">
                     {activeAlertCount > 0
-                      ? `A cross-community relationship and ${activeAlertCount} transaction chains flagged for human verification.`
-                      : "A cross-community relationship has been flagged for human verification."}
+                      ? `A cross-community link & ${activeAlertCount} transaction series flagged for human verification.`
+                      : "Cross-community relationship flagged for human verification."}
                   </p>
                 </div>
 
                 {/* 4. Geographic Spread */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 block">
                     4. Geographic Spread
                   </span>
-                  <p className="text-slate-700 font-medium leading-relaxed">
+                  <p className="text-slate-700 font-medium text-[11px] leading-snug mt-0.5">
                     {graphStats.locations > 0
                       ? `Activity appears across ${graphStats.locations} synthetic geographic zones.`
-                      : "Activity mapped across synthetic geographic reference zones."}
+                      : "Activity mapped across synthetic reference zones."}
                   </p>
                 </div>
 
                 {/* 5. Evidence Confidence */}
-                <div className="p-2.5 rounded-xl bg-blue-50/60 border border-blue-100">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900">
+                <div className="p-2 rounded-lg bg-blue-50/60 border border-blue-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-blue-900">
                       5. Evidence Confidence
                     </span>
-                    <span className="text-[11px] font-extrabold text-blue-700 font-mono">
+                    <span className="text-[10px] font-extrabold text-blue-700 font-mono">
                       {graphStats.totalNodes > 0 ? "0.89 (89.4%)" : "0.00"}
                     </span>
                   </div>
@@ -644,14 +677,14 @@ export default function DashboardPage() {
                       style={{ width: graphStats.totalNodes > 0 ? "89.4%" : "0%" }}
                     />
                   </div>
-                  <p className="text-[10px] text-slate-600 mt-1.5 leading-tight font-medium">
-                    Status: <strong>Requires human verification</strong> • Investigative lead only.
+                  <p className="text-[9px] text-slate-600 mt-1 leading-tight font-medium">
+                    Status: <strong>Requires human verification</strong> • Lead only.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between font-medium">
+            <div className="mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-slate-500 flex items-center justify-between font-medium shrink-0">
               <span>National Intelligence Grid</span>
               <span className="font-bold text-blue-700 font-mono">
                 {graphStats.totalNodes > 0 ? "AUDIT READY" : "STANDBY"}
@@ -662,11 +695,11 @@ export default function DashboardPage() {
       </main>
 
       {/* Official SIH 2026 Institutional Footer */}
-      <footer className="border-t border-slate-200 bg-white px-4 py-2.5 text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2 shadow-xs">
-        <div className="flex items-center gap-3">
+      <footer className="border-t border-slate-200 bg-white px-4 py-1.5 text-[10px] text-slate-500 flex flex-wrap items-center justify-between gap-2 shadow-2xs shrink-0">
+        <div className="flex items-center gap-2.5">
           <span className="text-slate-800 font-bold">SIH 2026 • MINISTRY OF HOME AFFAIRS</span>
           <span className="text-slate-300">|</span>
-          <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[10px]">
+          <span className="text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-[9px]">
             SYNTHETIC DEMO DATA
           </span>
           <span className="text-slate-300">|</span>
@@ -675,7 +708,7 @@ export default function DashboardPage() {
           <span>CYTOSCAPE HYBRID ENGINE</span>
         </div>
         <div>
-          <span suppressHydrationWarning className="font-mono text-[10px] text-slate-600 font-medium">
+          <span suppressHydrationWarning className="font-mono text-[9px] text-slate-600 font-medium">
             LAST AUDIT SYNC: {mounted ? (lastSyncTime || "INITIALIZING") : "INITIALIZING"}
           </span>
         </div>
@@ -725,7 +758,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900">Financial Intelligence Alerts</h3>
-                  <p className="text-xs text-slate-500 font-medium">Structuring &amp; sub-₹50,000 threshold evasion detections</p>
+                  <p className="text-xs text-slate-500 font-medium">Demo-configurable structuring evasion analysis (FIU / AML decision support)</p>
                 </div>
               </div>
               <button

@@ -92,12 +92,12 @@ def merge_alias_into_canonical(canonical_name: str, alias_name: str) -> None:
         MERGE (other)-[:ASSOCIATED_WITH]->(canonical)
     )
     
-    // Consolidate aliases property
-    SET canonical.aliases = CASE 
-        WHEN canonical.aliases IS NULL THEN [alias.name]
-        WHEN NOT alias.name IN canonical.aliases THEN canonical.aliases + alias.name
-        ELSE canonical.aliases
-    END
+    // Consolidate aliases property without losing prior alias list
+    WITH canonical, alias,
+         coalesce(canonical.aliases, []) + [alias.name] + coalesce(alias.aliases, []) AS combined_aliases
+    UNWIND combined_aliases AS single_alias
+    WITH canonical, alias, collect(DISTINCT single_alias) AS distinct_aliases
+    SET canonical.aliases = [a IN distinct_aliases WHERE a <> canonical.name]
     
     // Delete duplicate alias node
     DETACH DELETE alias

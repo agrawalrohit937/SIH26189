@@ -40,7 +40,10 @@ def sync_cluster_ids_from_ground_truth(path: str = "ground_truth.json") -> Dict[
                type(r) AS rel_type
     """)
 
-    # 2. Build NetworkX graph
+    # 2. Build NetworkX graph with deterministic node and edge order
+    all_nodes_res.sort(key=lambda r: str(r.get("id", "")))
+    all_edges_res.sort(key=lambda r: (str(r.get("source", "")), str(r.get("target", ""))))
+
     G = nx.Graph()
     for row in all_nodes_res:
         node_id = str(row["id"])
@@ -52,54 +55,27 @@ def sync_cluster_ids_from_ground_truth(path: str = "ground_truth.json") -> Dict[
         if s in G and t in G:
             G.add_edge(s, t, rel_type=row.get("rel_type"))
 
-    # 3. Community detection on active topology
+    # 3. Real Louvain community detection on active graph topology
     node_to_cluster: Dict[str, str] = {}
     
-    # Try greedy modularity community detection if graph has edges
     if G.number_of_edges() > 0:
         try:
-            communities = list(nx.community.greedy_modularity_communities(G))
-            # Sort communities by size descending
-            communities.sort(key=len, reverse=True)
+            from networkx.algorithms.community import louvain_communities
+            communities = list(louvain_communities(G, seed=42))
+            # Sort communities deterministically by size descending, then by min element name
+            communities.sort(key=lambda c: (-len(c), sorted(list(c))[0] if c else ""))
             for cluster_idx, comm in enumerate(communities):
-                for node_id in comm:
+                for node_id in sorted(list(comm)):
                     node_to_cluster[node_id] = str(cluster_idx)
+            logger.info(f"Louvain community detection discovered {len(communities)} distinct syndicate clusters.")
         except Exception as comm_err:
-            logger.warning(f"Greedy modularity clustering fallback to connected components: {comm_err}")
+            logger.warning(f"Louvain clustering fallback to connected components: {comm_err}")
             for cluster_idx, comp in enumerate(nx.connected_components(G)):
                 for node_id in comp:
                     node_to_cluster[node_id] = str(cluster_idx)
     else:
         for idx, node_id in enumerate(G.nodes()):
             node_to_cluster[node_id] = "0"
-
-    # Optional: check if ground_truth.json has predefined clusters for any specific entities
-    gt_path = path
-    if not os.path.exists(gt_path):
-        candidate = os.path.join("backend", path)
-        if os.path.exists(candidate):
-            gt_path = candidate
-        else:
-            candidate_root = os.path.join("e:/SIH26189", path)
-            if os.path.exists(candidate_root):
-                gt_path = candidate_root
-
-    if os.path.exists(gt_path):
-        try:
-            with open(gt_path, "r", encoding="utf-8") as f:
-                gt = json.load(f)
-            nodes_dict = gt.get("nodes", gt)
-            for k, v in nodes_dict.items():
-                if isinstance(v, dict):
-                    gt_cluster = str(v.get("cluster", "0"))
-                    if v.get("name") and str(v.get("name")) in node_to_cluster:
-                        node_to_cluster[str(v.get("name"))] = gt_cluster
-                    if v.get("phone") and str(v.get("phone")) in node_to_cluster:
-                        node_to_cluster[str(v.get("phone"))] = gt_cluster
-                    if v.get("account") and str(v.get("account")) in node_to_cluster:
-                        node_to_cluster[str(v.get("account"))] = gt_cluster
-        except Exception as e:
-            logger.debug(f"Ground truth alignment skipped ({e})")
 
     # 4. Update nodes in Neo4j in batch
     updates = [{"id": node_id, "cluster": cluster_id} for node_id, cluster_id in node_to_cluster.items()]

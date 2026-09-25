@@ -180,7 +180,7 @@ MERGE (senderAcc)-[t:TRANSFERRED_TO {
 ### 3.1 Structuring Mathematics & Regulatory Context
 
 Under Indian Anti-Money Laundering regulatory guidance and FIU-IND compliance rules:
-- **Cash Transaction Reporting (CTR) & High-Value Scrutiny:** Transactions structured right below threshold boundaries (e.g., ₹49,000 to ₹49,999 to evade ₹50,000 threshold verification) are flagged as structuring/smurfing patterns.
+- **Cash Transaction Reporting (CTR) & High-Value Scrutiny:** Transactions structured right below threshold boundaries (e.g., ₹49,000 to ₹49,999) are flagged as structuring/smurfing patterns under demo-configurable thresholds [Demo-configurable structuring threshold (not a literal citation of PMLA Section 12 or the ₹10,00,000 statutory CTR limit under FIU-IND rules)].
 - **Smurfing (Structuring)** is defined as deliberately breaking down an aggregate amount $M$ into $k$ smaller micro-transactions $t_i$:
 $$49,000 \le \text{amount}(t_i) \le 49,999 \quad \forall i \in \{1, \dots, k\}$$
 such that within a localized velocity window $\Delta t = \text{Date}(t_k) - \text{Date}(t_1) \le 5 \text{ days}$, the total laundered sum satisfies:

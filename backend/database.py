@@ -62,10 +62,11 @@ class Neo4jDatabase:
             result = session.run(query, parameters or {})
             return [record.data() for record in result]
 
-    def get_graph_topology(self, limit: int = 500) -> Dict[str, Any]:
+    def get_graph_topology(self, limit: int = 500, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
         """
         Fetches all nodes and relationships from Neo4j and formats them
         strictly into Cytoscape.js elements schema matching the Criminal Network Graph visualization design.
+        Supports temporal date-range filtering over CALLED and TRANSFERRED_TO edges.
         """
         query = """
         MATCH (n)
@@ -80,6 +81,7 @@ class Neo4jDatabase:
         nodes_dict: Dict[str, Dict[str, Any]] = {}
         edges_dict: Dict[str, Dict[str, Any]] = {}
         node_degrees: Dict[str, int] = {}
+
 
         # First pass to compute degrees to identify key central suspect
         for row in records:
@@ -170,6 +172,16 @@ class Neo4jDatabase:
             r_eid = row.get("r_id")
 
             if source_id and target_id and r_type and r_eid:
+                # Temporal filtering if dates provided
+                if start_date or end_date:
+                    edge_time = r_props.get("timestamp") or r_props.get("date")
+                    if edge_time and (r_type in ["CALLED", "TRANSFERRED_TO"]):
+                        edge_date_str = str(edge_time)[:10]
+                        if start_date and edge_date_str < start_date:
+                            continue
+                        if end_date and edge_date_str > end_date:
+                            continue
+
                 edge_id = f"edge_{r_eid}"
                 if edge_id not in edges_dict:
                     # User-friendly edge labels
@@ -198,6 +210,7 @@ class Neo4jDatabase:
                     # Check if smurfing amount
                     amt_val = float(r_props.get("amount") or 0.0)
                     is_smurfing = 49000.0 <= amt_val <= 49999.0
+
 
                     edge_payload: Dict[str, Any] = {
                         "id": edge_id,
@@ -230,3 +243,8 @@ class Neo4jDatabase:
 
 # Global database instance
 db = Neo4jDatabase()
+
+def run_query(query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Helper alias function to execute Cypher queries on the global Neo4j database instance."""
+    return db.execute_query(query, parameters)
+

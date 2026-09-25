@@ -3,7 +3,7 @@
     "total_persons": 19,
     "total_relationships": 36,
     "clusters": 3,
-    "generated_at": "2026-09-24T09:16:04.781028"
+    "generated_at": "2026-09-25T05:52:14.922035"
   },
   "nodes": {
     "0": {
@@ -22,10 +22,10 @@
     "1": {
       "name": "Yahvi Kala",
       "aliases": [
-        "Yahvi K.",
         "Yahvi Kala",
-        "Y. Kala",
-        "YAHVI KALA"
+        "Yahvi K.",
+        "YAHVI KALA",
+        "Y. Kala"
       ],
       "phone": "9835942492",
       "account": "1691775673",
@@ -36,8 +36,8 @@
     "2": {
       "name": "Bhavya Sunder",
       "aliases": [
-        "Bhavya Sunder",
         "B. Sunder",
+        "Bhavya Sunder",
         "Bhavya S."
       ],
       "phone": "9882118943",
@@ -49,8 +49,8 @@
     "3": {
       "name": "Falguni Sarma",
       "aliases": [
-        "Falguni S.",
         "Falguni Sarma",
+        "Falguni S.",
         "F. Sarma"
       ],
       "phone": "9853758773",
@@ -62,9 +62,9 @@
     "4": {
       "name": "Aadhya Hans",
       "aliases": [
-        "Aadhya H.",
         "Aadhya Hans",
-        "A. Hans"
+        "A. Hans",
+        "Aadhya H."
       ],
       "phone": "9818442154",
       "account": "7142464820",
@@ -75,9 +75,9 @@
     "5": {
       "name": "Gaurang Saxena",
       "aliases": [
-        "GAURANG SAXENA",
         "Gaurang Saxena",
         "Gaurang S.",
+        "GAURANG SAXENA",
         "G. Saxena"
       ],
       "phone": "9824871209",
@@ -102,9 +102,9 @@
     "7": {
       "name": "William Raval",
       "aliases": [
+        "W. Raval",
         "William R.",
-        "William Raval",
-        "W. Raval"
+        "William Raval"
       ],
       "phone": "9825954738",
       "account": "3738438085",
@@ -115,9 +115,9 @@
     "8": {
       "name": "Sathvik Bhatnagar",
       "aliases": [
-        "S. Bhatnagar",
         "Sathvik B.",
-        "Sathvik Bhatnagar"
+        "Sathvik Bhatnagar",
+        "S. Bhatnagar"
       ],
       "phone": "9836959116",
       "account": "1598757003",
@@ -168,9 +168,9 @@
     "12": {
       "name": "Pallavi Bose",
       "aliases": [
-        "P. Bose",
-        "Pallavi Bose",
         "Pallavi B.",
+        "Pallavi Bose",
+        "P. Bose",
         "PALLAVI BOSE"
       ],
       "phone": "9830675485",
@@ -182,9 +182,9 @@
     "13": {
       "name": "Omya Ahuja",
       "aliases": [
-        "Omya Ahuja",
+        "Omya A.",
         "O. Ahuja",
-        "Omya A."
+        "Omya Ahuja"
       ],
       "phone": "9863794027",
       "account": "3741744379",
@@ -195,9 +195,9 @@
     "14": {
       "name": "Tarak Warrior",
       "aliases": [
+        "Tarak W.",
         "Tarak Warrior",
-        "T. Warrior",
-        "Tarak W."
+        "T. Warrior"
       ],
       "phone": "9879303793",
       "account": "1284721345",
@@ -208,9 +208,9 @@
     "15": {
       "name": "Hemani Bains",
       "aliases": [
+        "Hemani B.",
         "HEMANI BAINS",
         "Hemani Bains",
-        "Hemani B.",
         "H. Bains"
       ],
       "phone": "9826165867",
@@ -223,9 +223,9 @@
       "name": "Jagvi Andra",
       "aliases": [
         "J. Andra",
-        "JAGVI ANDRA",
+        "Jagvi A.",
         "Jagvi Andra",
-        "Jagvi A."
+        "JAGVI ANDRA"
       ],
       "phone": "9813191941",
       "account": "3856556748",
@@ -236,9 +236,9 @@
     "17": {
       "name": "Mitesh Banerjee",
       "aliases": [
+        "Mitesh B.",
         "M. Banerjee",
-        "Mitesh Banerjee",
-        "Mitesh B."
+        "Mitesh Banerjee"
       ],
       "phone": "9858902485",
       "account": "1897322223",
@@ -249,8 +249,8 @@
     "18": {
       "name": "Pratyush Mall",
       "aliases": [
-        "P. Mall",
         "Pratyush Mall",
+        "P. Mall",
         "Pratyush M."
       ],
       "phone": "9884639739",

@@ -78,7 +78,7 @@ def run_full_pipeline():
     print(f"[OK] Ingested Bank Transactions: {bank_res['records_ingested']} records (with phone linkages).")
 
     fir_res = process_fir_text("FIR_Case_992.txt")
-    print(f"[OK] Ingested FIR Intelligence: {fir_res['nodes_merged']} persons extracted.")
+    print(f"[OK] Ingested FIR Intelligence: {fir_res.get('total_persons_extracted', len(fir_res.get('extracted_intelligence', {}).get('persons', [])))} persons extracted.")
 
     p_before = get_person_count()
     n_before = get_node_count()

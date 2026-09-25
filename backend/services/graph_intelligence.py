@@ -2,15 +2,24 @@ import logging
 from typing import Dict, Any, List
 from database import db
 
+# ==============================================================================
+# POLICY CONVENTION:
+# Do not add specific legal citations (rule numbers, section numbers, thresholds
+# attributed to a named law) to any generated text unless that exact citation
+# has been manually verified by a human and hardcoded as a reviewed constant.
+# Never let the LLM or any generation logic invent one.
+# ==============================================================================
+
 logger = logging.getLogger(__name__)
 
 
 def detect_smurfing_patterns() -> List[Dict[str, Any]]:
     """
     Detects 'Smurfing' / Structuring evasion patterns where BankAccount transfers
-    are deliberately kept just below reporting thresholds (₹49,000 <= amount <= ₹49,999)
-    and occur multiple times within a 5-day window between related or designated accounts.
+    are kept in the range (₹49,000 <= amount <= ₹49,999) occurring multiple times within a 5-day window.
+    Demo-configurable structuring threshold (not a literal citation of statutory CTR limits under FIU-IND rules).
     """
+
     cypher_query = """
     MATCH (s:BankAccount)-[t:TRANSFERRED_TO]->(r:BankAccount)
     WHERE t.amount >= 49000.0 AND t.amount <= 49999.0
@@ -53,8 +62,8 @@ def detect_smurfing_patterns() -> List[Dict[str, Any]]:
         total_evaded_amount,
         transactions,
         "HIGH - Structuring / Smurfing Threshold Evasion" AS alert_type,
-        "Detected " + toString(transaction_count) + " micro-transactions totaling ₹" + 
-        toString(total_evaded_amount) + " within " + toString(span_days) + " days [Demo threshold (configurable) — structuring evasion analysis]." AS alert_description
+        "Detected " + toString(transaction_count) + " repeated micro-transfers totaling ₹" + 
+        toString(total_evaded_amount) + " within " + toString(span_days) + " days, matching a known structured financial evasion pattern." AS alert_description
     ORDER BY total_evaded_amount DESC
     """
 
