@@ -13,7 +13,8 @@ import {
   ArrowRight,
   ShieldAlert,
   BrainCircuit,
-  Info
+  Info,
+  X
 } from "lucide-react";
 
 interface PredictedLink {
@@ -105,22 +106,22 @@ export const GATLinkPredictionPanel: React.FC<GATLinkPredictionPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="p-4 bg-gradient-to-r from-blue-900 to-indigo-900 text-white flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        {/* Clean Light Header */}
+        <div className="p-5 px-6 border-b border-slate-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900 shrink-0">
               <BrainCircuit className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold tracking-wide">GAT Graph Attention Link Prediction</h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-200">
-                  AI Link Discovery
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">Graph Attention Link Prediction</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
+                  AI // LINK DISCOVERY
                 </span>
               </div>
-              <p className="text-xs text-blue-200">2-Layer Graph Attention Network link prediction with active learning</p>
+              <p className="text-xs text-slate-500 mt-0.5">2-Layer Graph Attention Network link prediction with active learning</p>
             </div>
           </div>
 
@@ -128,25 +129,26 @@ export const GATLinkPredictionPanel: React.FC<GATLinkPredictionPanelProps> = ({
             <button
               onClick={fetchPredictions}
               disabled={loading}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer disabled:opacity-50"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer disabled:opacity-50"
               title="Re-run GAT Model"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer text-xs font-bold px-2.5"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+              title="Close"
             >
-              Close
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Info Banner */}
-        <div className="p-3 bg-blue-50/80 border-b border-blue-100 flex items-start gap-2.5 text-xs text-blue-900">
-          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-          <p className="text-[11px] leading-relaxed">
-            The 2-Layer GAT calculates multi-hop attention embeddings across communication and financial topologies to predict unobserved criminal associations. Confirmed or rejected links feed into active learning loss weights to refine candidate ranking.
+        <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs text-slate-600">
+          <Info className="w-3.5 h-3.5 text-blue-800 shrink-0" />
+          <p className="text-[11px]">
+            AI-predicted links based on graph attention. Confirm to ingest edge or reject as false positive.
           </p>
         </div>
 

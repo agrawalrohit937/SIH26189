@@ -66,21 +66,40 @@ class Neo4jDatabase:
             result = session.run(query, parameters or {})
             return [record.data() for record in result]
 
-    def get_graph_topology(self, limit: int = 500, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
+    def get_graph_topology(
+        self,
+        limit: int = 500,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        case_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Fetches all nodes and relationships from Neo4j and formats them
+        Fetches nodes and relationships from Neo4j and formats them
         strictly into Cytoscape.js elements schema matching the Criminal Network Graph visualization design.
-        Supports temporal date-range filtering over CALLED and TRANSFERRED_TO edges.
+        Supports case_id isolation filtering and temporal date-range filtering over CALLED and TRANSFERRED_TO edges.
         """
-        query = """
-        MATCH (n)
-        OPTIONAL MATCH (n)-[r]->(m)
-        RETURN n, labels(n) AS n_labels, elementId(n) AS n_id,
-               r, type(r) AS r_type, properties(r) AS r_props, elementId(r) AS r_id,
-               m, labels(m) AS m_labels, elementId(m) AS m_id
-        LIMIT $limit
-        """
-        records = self.execute_query(query, {"limit": limit})
+        if case_id and case_id.strip() and case_id.upper() != "ALL":
+            query = """
+            MATCH (n)
+            WHERE n.case_id = $case_id OR $case_id IN n.case_ids OR n.source_fir = $case_id OR toString(n.cluster) = $case_id
+            OPTIONAL MATCH (n)-[r]->(m)
+            WHERE m.case_id = $case_id OR $case_id IN m.case_ids OR m.source_fir = $case_id OR toString(m.cluster) = $case_id OR r.case_id = $case_id
+            RETURN n, labels(n) AS n_labels, elementId(n) AS n_id,
+                   r, type(r) AS r_type, properties(r) AS r_props, elementId(r) AS r_id,
+                   m, labels(m) AS m_labels, elementId(m) AS m_id
+            LIMIT $limit
+            """
+            records = self.execute_query(query, {"limit": limit, "case_id": case_id})
+        else:
+            query = """
+            MATCH (n)
+            OPTIONAL MATCH (n)-[r]->(m)
+            RETURN n, labels(n) AS n_labels, elementId(n) AS n_id,
+                   r, type(r) AS r_type, properties(r) AS r_props, elementId(r) AS r_id,
+                   m, labels(m) AS m_labels, elementId(m) AS m_id
+            LIMIT $limit
+            """
+            records = self.execute_query(query, {"limit": limit})
         
         nodes_dict: Dict[str, Dict[str, Any]] = {}
         edges_dict: Dict[str, Dict[str, Any]] = {}
@@ -243,6 +262,58 @@ class Neo4jDatabase:
                 "edges": list(edges_dict.values())
             }
         }
+
+    def get_case_list(self) -> List[Dict[str, Any]]:
+        """Returns list of all active cases/dockets present in Neo4j."""
+        query = """
+        MATCH (n)
+        WHERE n.case_id IS NOT NULL OR n.cluster IS NOT NULL OR n.source_fir IS NOT NULL
+        WITH coalesce(n.case_id, n.source_fir, 'Syndicate Cell #' + toString(n.cluster)) AS cid,
+             count(n) AS node_count,
+             collect(distinct labels(n)[0]) AS entity_types
+        RETURN cid AS case_id, node_count, entity_types
+        ORDER BY node_count DESC
+        """
+        records = self.execute_query(query)
+        if not records:
+            res = self.execute_query("MATCH (n) RETURN count(n) AS total")
+            total = res[0]["total"] if res else 0
+            if total > 0:
+                return [{
+                    "case_id": "FIR-992/2026",
+                    "title": "Primary Case Docket (FIR-992)",
+                    "node_count": total
+                }]
+            return []
+        
+        cases = []
+        for r in records:
+            cid = str(r["case_id"])
+            cases.append({
+                "case_id": cid,
+                "title": f"Case: {cid}",
+                "node_count": r["node_count"],
+                "types": r.get("entity_types", [])
+            })
+        return cases
+
+    def delete_case(self, case_id: str) -> int:
+        """Deletes only nodes and relationships belonging to a specific case without affecting other cases."""
+        count_q = """
+        MATCH (n)
+        WHERE n.case_id = $case_id OR $case_id IN n.case_ids OR n.source_fir = $case_id OR toString(n.cluster) = $case_id
+        RETURN count(n) AS c
+        """
+        res = self.execute_query(count_q, {"case_id": case_id})
+        count = res[0]["c"] if res else 0
+
+        delete_q = """
+        MATCH (n)
+        WHERE n.case_id = $case_id OR $case_id IN n.case_ids OR n.source_fir = $case_id OR toString(n.cluster) = $case_id
+        DETACH DELETE n
+        """
+        self.execute_query(delete_q, {"case_id": case_id})
+        return count
 
 
 # Global database instance

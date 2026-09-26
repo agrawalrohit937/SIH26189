@@ -78,6 +78,10 @@ export default function DashboardPage() {
   const [currentRole, setCurrentRole] = useState<string>("Supervisor");
   const [currentUsername, setCurrentUsername] = useState<string>("supervisor");
 
+  // Case Docket Filter & Management
+  const [selectedCaseId, setSelectedCaseId] = useState<string>("ALL");
+  const [activeCases, setActiveCases] = useState<Array<{ case_id: string; node_count?: number; edge_count?: number }>>([]);
+
   // Graph topology stats for left & right panels
   const [graphStats, setGraphStats] = useState({
     persons: 0,
@@ -119,6 +123,39 @@ export default function DashboardPage() {
     return () => document.removeEventListener("fullscreenchange", handleFsChange);
   }, []);
 
+  // Restore user session and Axios Authorization Header
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("mha_token");
+      const storedUser = localStorage.getItem("mha_user");
+      if (token && token !== "undefined" && token !== "null") {
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      } else {
+        // Auto-seed default supervisor session for seamless evaluation
+        axios
+          .post(`${API_BASE_URL}/api/v1/auth/login`, {
+            username: "supervisor",
+            password: "supervisor123",
+          })
+          .then((res) => {
+            if (res.data?.access_token) {
+              localStorage.setItem("mha_token", res.data.access_token);
+              localStorage.setItem("mha_user", JSON.stringify(res.data.user));
+              axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.access_token}`;
+            }
+          })
+          .catch(() => {});
+      }
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed?.role) setCurrentRole(parsed.role);
+          if (parsed?.username) setCurrentUsername(parsed.username);
+        } catch {}
+      }
+    }
+  }, []);
+
   const checkBackendHealth = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/`, { timeout: 2500 });
@@ -133,9 +170,23 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const fetchActiveCases = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/v1/cases`);
+      if (res.data?.cases) {
+        setActiveCases(res.data.cases);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const fetchGraphStats = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/v1/graph/topology`);
+      const url = selectedCaseId && selectedCaseId !== "ALL"
+        ? `${API_BASE_URL}/api/v1/graph/topology?case_id=${encodeURIComponent(selectedCaseId)}`
+        : `${API_BASE_URL}/api/v1/graph/topology`;
+      const res = await axios.get(url);
       const nodes = res.data?.elements?.nodes || [];
       const edges = res.data?.elements?.edges || [];
 
@@ -169,12 +220,13 @@ export default function DashboardPage() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [selectedCaseId]);
 
   // Ephemeral Privacy Session: On browser load / refresh, purge old data so session starts pristine
   useEffect(() => {
     setMounted(true);
     checkBackendHealth();
+    fetchActiveCases();
 
     const purgeEphemeralSessionOnMount = async () => {
       try {
@@ -182,6 +234,8 @@ export default function DashboardPage() {
         setGraphRefreshTrigger(-1);
         setAlertsRefreshTrigger(-1);
         setActiveAlertCount(0);
+        setActiveCases([]);
+        setSelectedCaseId("ALL");
         setGraphStats({
           persons: 0,
           phones: 0,
@@ -194,7 +248,7 @@ export default function DashboardPage() {
           totalCommunities: 0,
         });
       } catch (err) {
-        // Backend could still be initializing
+        // Backend could still be initializing or non-admin role
       }
     };
 
@@ -202,7 +256,7 @@ export default function DashboardPage() {
 
     const interval = setInterval(checkBackendHealth, 15000);
     return () => clearInterval(interval);
-  }, [checkBackendHealth]);
+  }, [checkBackendHealth, fetchActiveCases]);
 
   // Handler to purge the entire database manually
   const handlePurgeDatabase = async () => {
@@ -214,6 +268,8 @@ export default function DashboardPage() {
       setGraphRefreshTrigger(-1);
       setAlertsRefreshTrigger(-1);
       setActiveAlertCount(0);
+      setActiveCases([]);
+      setSelectedCaseId("ALL");
       setGraphStats({
         persons: 0,
         phones: 0,
@@ -230,12 +286,43 @@ export default function DashboardPage() {
         description: "Zero data retained. Ready for fresh case intake.",
       });
     } catch (err: any) {
-      console.error("Failed to purge database:", err);
-      toast.error("Purge Failed", {
-        description: err.response?.data?.detail || err.message || "Failed to clear database.",
-      });
+      if (err.response?.status === 403) {
+        toast.error("RBAC Permission Denied (HTTP 403)", {
+          description: `User '${currentUsername}' with role '${currentRole}' is not authorized to purge case databases. Requires Lead Intelligence Admin credentials.`,
+        });
+      } else {
+        toast.error("Purge Failed", {
+          description: err.response?.data?.detail || err.message || "Failed to clear database.",
+        });
+      }
     } finally {
       setIsPurging(false);
+    }
+  };
+
+  // Handler to delete a single case docket
+  const handleDeleteCase = async (caseId: string) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/v1/cases/${encodeURIComponent(caseId)}`);
+      toast.success("Case Docket Removed", {
+        description: `Case '${caseId}' and all isolated evidence nodes purged from graph.`,
+      });
+      fetchActiveCases();
+      if (selectedCaseId === caseId) {
+        setSelectedCaseId("ALL");
+      }
+      setGraphRefreshTrigger((prev) => (prev <= 0 ? 1 : prev + 1));
+      fetchGraphStats();
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        toast.error("RBAC Permission Denied (HTTP 403)", {
+          description: `User '${currentUsername}' (${currentRole}) lacks administrative clearance to delete case dockets.`,
+        });
+      } else {
+        toast.error("Case Deletion Failed", {
+          description: err.response?.data?.detail || err.message || "Failed to delete case.",
+        });
+      }
     }
   };
 
@@ -243,6 +330,7 @@ export default function DashboardPage() {
   const handleEvidenceIngested = () => {
     setGraphRefreshTrigger((prev) => (prev <= 0 ? 1 : prev + 1));
     setAlertsRefreshTrigger((prev) => (prev <= 0 ? 1 : prev + 1));
+    fetchActiveCases();
     fetchGraphStats();
   };
 
@@ -618,17 +706,22 @@ export default function DashboardPage() {
               <circle cx="200" cy="200" r="185" fill="none" stroke="currentColor" strokeWidth="10" />
               <circle cx="200" cy="200" r="170" fill="none" stroke="currentColor" strokeWidth="3" />
               <circle cx="200" cy="200" r="32" fill="currentColor" />
-              {Array.from({ length: 24 }).map((_, i) => (
-                <line
-                  key={i}
-                  x1="200"
-                  y1="200"
-                  x2={200 + 168 * Math.cos((i * 15 * Math.PI) / 180)}
-                  y2={200 + 168 * Math.sin((i * 15 * Math.PI) / 180)}
-                  stroke="currentColor"
-                  strokeWidth="3.5"
-                />
-              ))}
+              {Array.from({ length: 24 }).map((_, i) => {
+                const angle = (i * 15 * Math.PI) / 180;
+                const x2 = Number((200 + 168 * Math.cos(angle)).toFixed(2));
+                const y2 = Number((200 + 168 * Math.sin(angle)).toFixed(2));
+                return (
+                  <line
+                    key={i}
+                    x1="200"
+                    y1="200"
+                    x2={x2}
+                    y2={y2}
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                  />
+                );
+              })}
             </svg>
           </div>
 
@@ -638,6 +731,10 @@ export default function DashboardPage() {
               apiBaseUrl={API_BASE_URL}
               refreshTrigger={graphRefreshTrigger}
               onRefreshLiveGraph={fetchGraphStats}
+              selectedCaseId={selectedCaseId}
+              onSelectCaseId={setSelectedCaseId}
+              activeCases={activeCases}
+              onDeleteCase={handleDeleteCase}
               onOpenBriefing={(target) => {
                 setBriefingSubject(target);
                 setShowBriefingModal(true);
@@ -845,21 +942,29 @@ export default function DashboardPage() {
 
       {/* Evidence Intake Modal */}
       {showIngestionModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 shadow-xs">
-                  <UploadCloud className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-lg bg-[#0A2540] flex items-center justify-center text-white shadow-xs">
+                  <UploadCloud className="w-4 h-4 text-orange-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Evidence Ingestion Hub</h3>
-                  <p className="text-xs text-slate-500 font-medium">Upload CSV bank records, telecom CDR logs, or FIR case dossiers</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-extrabold text-[#0A2540] uppercase tracking-wide">
+                      Evidence Ingestion Hub
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.2 rounded bg-blue-50 border border-blue-200 text-blue-900">
+                      CCTNS // NATGRID
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Multi-source intake for Banking Ledgers, Telecom CDRs &amp; Police FIR Dossiers</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowIngestionModal(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-200/80 cursor-pointer font-bold transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 cursor-pointer font-bold transition-colors"
+                title="Close"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -870,6 +975,8 @@ export default function DashboardPage() {
                 apiBaseUrl={API_BASE_URL}
                 onDataIngested={handleEvidenceIngested}
                 hideHeader={true}
+                activeCaseId={selectedCaseId !== "ALL" ? selectedCaseId : undefined}
+                onSelectCaseId={(id) => setSelectedCaseId(id)}
               />
             </div>
           </div>

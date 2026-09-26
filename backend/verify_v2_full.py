@@ -272,6 +272,8 @@ def test_2_4_temporal_graph_filtering(token):
 if __name__ == "__main__":
     db.connect()
     token = get_auth_token("admin")
+    # Seed FIR case document for RAG test
+    client.post("/api/v1/ingest/fir?file_path=FIR_Case_992.txt", headers={"Authorization": f"Bearer {token}"})
     test_1_1_gat_link_prediction(token)
     test_1_2_burner_evasion_chain(token)
     test_1_3_active_learning_feedback(token)

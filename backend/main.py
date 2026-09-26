@@ -267,7 +267,8 @@ async def trigger_csv_ingestion(
     cdr_file: Optional[UploadFile] = File(None, description="Uploaded CDR logs CSV file"),
     bank_file: Optional[UploadFile] = File(None, description="Uploaded Bank transactions CSV file"),
     cdr_file_path: Optional[str] = Query(None, description="Path to CDR logs CSV file on disk"),
-    bank_file_path: Optional[str] = Query(None, description="Path to Bank transactions CSV file on disk")
+    bank_file_path: Optional[str] = Query(None, description="Path to Bank transactions CSV file on disk"),
+    case_id: Optional[str] = Form("FIR-992/2026", description="Case docket or FIR number")
 ):
     """
     Triggers ingestion of structured CDR logs and/or Bank transactions into Neo4j.
@@ -280,6 +281,7 @@ async def trigger_csv_ingestion(
     try:
         cdr_result = None
         bank_result = None
+        active_case = str(case_id or "FIR-992/2026").strip()
 
         if cdr_file is None and bank_file is None and not cdr_file_path and not bank_file_path:
             raise HTTPException(
@@ -292,18 +294,18 @@ async def trigger_csv_ingestion(
             content = await cdr_file.read()
             if len(content) > MAX_FILE_SIZE:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded CDR file exceeds maximum allowed size (10 MB).")
-            cdr_result = ingest_cdr_data(content)
+            cdr_result = ingest_cdr_data(content, case_id=active_case)
         elif cdr_file_path:
-            cdr_result = ingest_cdr_data(cdr_file_path)
+            cdr_result = ingest_cdr_data(cdr_file_path, case_id=active_case)
 
         # 2. Process Bank Transactions
         if bank_file is not None:
             content = await bank_file.read()
             if len(content) > MAX_FILE_SIZE:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded Bank file exceeds maximum allowed size (10 MB).")
-            bank_result = ingest_bank_data(content)
+            bank_result = ingest_bank_data(content, case_id=active_case)
         elif bank_file_path:
-            bank_result = ingest_bank_data(bank_file_path)
+            bank_result = ingest_bank_data(bank_file_path, case_id=active_case)
 
         # 3. Run entity resolution pass
         resolution_result = resolve_person_entities()
@@ -314,13 +316,14 @@ async def trigger_csv_ingestion(
         log_action(
             actor="Investigating Officer",
             action_type="INGEST_CSV_DATA",
-            action_detail=f"Ingested evidence: CDR={bool(cdr_result)}, Bank={bool(bank_result)}. Aliases unified={resolution_result.get('aliases_unified', 0)}."
+            action_detail=f"Ingested evidence into Case '{active_case}': CDR={bool(cdr_result)}, Bank={bool(bank_result)}. Aliases unified={resolution_result.get('aliases_unified', 0)}."
         )
 
         return GenericResponse(
             status="success",
-            message="CSV data successfully ingested, entity resolution executed, and clusters synced.",
+            message=f"CSV data successfully ingested for Case '{active_case}', entity resolution executed, and clusters synced.",
             data={
+                "case_id": active_case,
                 "cdr_ingestion": cdr_result,
                 "bank_ingestion": bank_result,
                 "entity_resolution": resolution_result,
@@ -345,7 +348,8 @@ async def trigger_fir_extraction(
     request: Request,
     file: Optional[UploadFile] = File(None, description="Uploaded FIR text, PDF, or image file"),
     file_path: Optional[str] = Query(None, description="Path to FIR file on disk"),
-    text: Optional[str] = Form(None, description="Raw FIR text content")
+    text: Optional[str] = Form(None, description="Raw FIR text content"),
+    case_id: Optional[str] = Form(None, description="Optional Case ID or FIR docket override")
 ):
     """
     Triggers intelligence extraction from FIR text, PDF documents, or scanned images.
@@ -375,32 +379,35 @@ async def trigger_fir_extraction(
                 extracted_text = extract_text_from_pdf(content)
                 if not extracted_text:
                     raise ValueError("Could not extract any readable text from uploaded PDF document.")
-                fir_result = process_fir_text(raw_text=extracted_text)
+                fir_result = process_fir_text(raw_text=extracted_text, case_id=case_id)
             elif filename.endswith((".png", ".jpg", ".jpeg", ".tiff", ".bmp")) or "image" in content_type:
                 extracted_text = extract_text_from_image(content)
                 if not extracted_text:
                     raise ValueError("Could not extract any readable text from uploaded image.")
-                fir_result = process_fir_text(raw_text=extracted_text)
+                fir_result = process_fir_text(raw_text=extracted_text, case_id=case_id)
             else:
-                fir_result = process_fir_text(file_source=content)
+                text_content = content.decode('utf-8', errors='replace')
+                fir_result = process_fir_text(raw_text=text_content, case_id=case_id)
         elif text:
-            fir_result = process_fir_text(raw_text=text)
+            fir_result = process_fir_text(raw_text=text, case_id=case_id)
         else:
-            fir_result = process_fir_text(file_path=file_path or "FIR_Case_992.txt")
+            fir_result = process_fir_text(file_path=file_path or "FIR_Case_992.txt", case_id=case_id)
 
         resolution_result = resolve_person_entities()
         cluster_result = sync_cluster_ids_from_ground_truth()
         
+        assigned_case = fir_result.get("case_id", "FIR-992/2026") if fir_result else "FIR-992/2026"
         log_action(
             actor="Investigating Officer",
             action_type="INGEST_FIR_DOCKET",
-            action_detail=f"Processed FIR Docket: Suspects extracted={len(fir_result.get('suspects', [])) if fir_result else 0}."
+            action_detail=f"Processed FIR Docket '{assigned_case}': Suspects extracted={fir_result.get('total_persons_extracted', 0) if fir_result else 0}."
         )
 
         return GenericResponse(
             status="success",
-            message="FIR document processed, intelligence merged into Neo4j, and clusters synced.",
+            message=f"FIR document for Case '{assigned_case}' processed, intelligence merged into Neo4j, and clusters synced.",
             data={
+                "case_id": assigned_case,
                 "fir_extraction": fir_result,
                 "entity_resolution": resolution_result,
                 "cluster_sync": cluster_result
@@ -561,16 +568,17 @@ def get_graph_topology_endpoint(
     limit: int = Query(500, description="Max entities to fetch"),
     start_date: Optional[str] = Query(None, description="Filter edges on or after YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="Filter edges on or before YYYY-MM-DD"),
+    case_id: Optional[str] = Query(None, description="Filter graph by specific case docket/ID or 'ALL'"),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Returns full Neo4j graph nodes and edges formatted strictly for Cytoscape.js.
-    Supports temporal date-range scrubbing over communication/financial edges.
+    Supports case_id isolation and temporal date-range scrubbing over communication/financial edges.
     Applies PII masking (last 4 digits only) if the requesting user has the Investigator role.
     Supervisors and Admins receive full unmasked PII.
     """
     try:
-        data = db.get_graph_topology(limit=limit, start_date=start_date, end_date=end_date)
+        data = db.get_graph_topology(limit=limit, start_date=start_date, end_date=end_date, case_id=case_id)
         nodes = data["elements"]["nodes"]
         edges = data["elements"]["edges"]
 
@@ -592,12 +600,13 @@ def get_graph_topology_endpoint(
         log_action(
             actor=user.get("actor", "Web Client"),
             action_type="FETCH_GRAPH_TOPOLOGY",
-            action_detail=f"Retrieved topology: {len(nodes)} nodes, {len(edges)} edges (Temporal: {start_date} to {end_date}, Role: {user.get('role')})."
+            action_detail=f"Retrieved topology: {len(nodes)} nodes, {len(edges)} edges (Case: {case_id or 'ALL'}, Temporal: {start_date} to {end_date}, Role: {user.get('role')})."
         )
         return {
             "status": "success",
             "user_role": user.get("role"),
             "pii_masked": user.get("role") == "Investigator",
+            "case_filter": case_id or "ALL",
             "start_date_filter": start_date,
             "end_date_filter": end_date,
             "total_nodes": len(nodes),
@@ -609,6 +618,47 @@ def get_graph_topology_endpoint(
         }
     except Exception as e:
         logger.error(f"Error fetching graph topology: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.get("/api/v1/cases", tags=["Case Management"])
+def get_cases_endpoint(user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Returns list of all active Case Dockets and Criminal Syndicates registered in Neo4j.
+    """
+    try:
+        cases = db.get_case_list()
+        return {
+            "status": "success",
+            "total_cases": len(cases),
+            "cases": cases
+        }
+    except Exception as e:
+        logger.error(f"Error fetching case list: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.delete("/api/v1/cases/{case_id:path}", response_model=GenericResponse, tags=["Case Management"])
+def delete_single_case_endpoint(
+    case_id: str,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Deletes only nodes and relationships belonging to a single case docket without wiping the rest of the database.
+    """
+    try:
+        deleted_count = db.delete_case(case_id)
+        log_action(
+            actor=user.get("actor", "Investigating Officer"),
+            action_type="DELETE_CASE_DOCKET",
+            action_detail=f"Deleted Case Docket '{case_id}' ({deleted_count} nodes removed) by {user.get('actor')}."
+        )
+        return GenericResponse(
+            status="success",
+            message=f"Case docket '{case_id}' successfully removed ({deleted_count} nodes deleted). Other cases remain intact."
+        )
+    except Exception as e:
+        logger.error(f"Error deleting case {case_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 

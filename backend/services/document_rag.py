@@ -81,6 +81,17 @@ def search_fir_documents(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
     """
     global DOCUMENT_STORE, VECTORIZER, DOCUMENT_VECTORS
 
+    if not DOCUMENT_STORE:
+        # Auto-seed from default disk FIR if available
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        sample_fir = os.path.join(base_dir, "FIR_Case_992.txt")
+        if os.path.exists(sample_fir):
+            try:
+                with open(sample_fir, "r", encoding="utf-8") as f:
+                    index_fir_document(fir_number="FIR-992/2026", police_station="Cyber Crime Cell, Special Task Force", text=f.read())
+            except Exception as e:
+                logger.warning(f"Could not auto-seed default FIR: {e}")
+
     if not DOCUMENT_STORE or VECTORIZER is None or DOCUMENT_VECTORS is None:
         return []
 

@@ -138,13 +138,14 @@ def extract_entities_rule_based(fir_text: str) -> Dict[str, Any]:
 def process_fir_text(
     file_source: Optional[Union[str, bytes]] = None,
     file_path: Optional[str] = None,
-    raw_text: Optional[str] = None
+    raw_text: Optional[str] = None,
+    case_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Reads FIR case text from file, bytes, or string.
     Uses Groq LLM (openai/gpt-oss-20b) to extract structured criminal intelligence,
     falling back to intelligent regex-based dynamic extraction on the actual text.
-    Merges entities into Neo4j with [:OWNS_PHONE] and [:ASSOCIATED_WITH] edges.
+    Merges entities into Neo4j with [:OWNS_PHONE] and [:ASSOCIATED_WITH] edges, tagged with case_id.
     """
     fir_text = ""
     source_label = "FIR_Case_Text"
@@ -260,11 +261,12 @@ Respond strictly with valid JSON only. Do not wrap in markdown or add conversati
         fir_match = re.search(r'(?:FIR\s*(?:No\.?|Number)?|Case\s*(?:No\.?|Number)?|Crime\s*(?:No\.?|Number)?)\s*[:.-]?\s*([A-Za-z0-9\/-]+)', fir_text, re.IGNORECASE)
         ps_match = re.search(r'(?:Police\s*Station|PS|Branch)\s*[:.-]?\s*([A-Za-z0-9\s,-]+?)(?:\n|$|\.)', fir_text, re.IGNORECASE)
         
-        dyn_fir_num = fir_match.group(1).strip() if fir_match else f"CASE-{abs(hash(fir_text[:60])) % 10000}/2026"
+        extracted_fir_num = fir_match.group(1).strip() if fir_match else f"CASE-{abs(hash(fir_text[:60])) % 10000}/2026"
+        active_case = str(case_id or extracted_fir_num).strip()
         dyn_ps = ps_match.group(1).strip() if ps_match else "Law Enforcement Agency"
 
         index_fir_document(
-            fir_number=dyn_fir_num,
+            fir_number=active_case,
             police_station=dyn_ps,
             text=fir_text
         )
@@ -273,24 +275,28 @@ Respond strictly with valid JSON only. Do not wrap in markdown or add conversati
 
     logger.info(f"Intelligence Extraction Result: {json.dumps(extracted_data, indent=2)}")
 
-
     # Ingest extracted intelligence into Neo4j
     # 1. Merge Persons
     merge_persons_query = """
     UNWIND $persons AS p
     MERGE (person:Person {name: p.name})
     SET person.role = p.role,
-        person.aliases = p.aliases
+        person.aliases = p.aliases,
+        person.case_id = $case_id
     """
     if extracted_data.get("persons"):
-        db.execute_query(merge_persons_query, {"persons": extracted_data["persons"]})
+        db.execute_query(merge_persons_query, {"persons": extracted_data["persons"], "case_id": active_case})
 
     # 2. Merge Phone Numbers and [:OWNS_PHONE] edges
     merge_phones_query = """
     UNWIND $associations AS assoc
     MERGE (person:Person {name: assoc.person_name})
     MERGE (phone:PhoneNumber {number: assoc.phone_number})
-    MERGE (person)-[:OWNS_PHONE]->(phone)
+      ON CREATE SET phone.case_id = $case_id
+      ON MATCH SET phone.case_id = coalesce(phone.case_id, $case_id)
+    MERGE (person)-[r:OWNS_PHONE]->(phone)
+      ON CREATE SET r.case_id = $case_id
+      ON MATCH SET r.case_id = coalesce(r.case_id, $case_id)
     """
     associations: List[Dict[str, str]] = list(extracted_data.get("phone_associations", []))
     for p in extracted_data.get("persons", []):
@@ -300,21 +306,24 @@ Respond strictly with valid JSON only. Do not wrap in markdown or add conversati
     if associations:
         unique_associations = [dict(t) for t in {tuple(d.items()) for d in associations if d.get("person_name") and d.get("phone_number")}]
         if unique_associations:
-            db.execute_query(merge_phones_query, {"associations": unique_associations})
+            db.execute_query(merge_phones_query, {"associations": unique_associations, "case_id": active_case})
 
     # 3. Merge [:ASSOCIATED_WITH] edges if extracted
     merge_associates_query = """
     UNWIND $associates AS assoc
     MERGE (p1:Person {name: assoc.person1})
     MERGE (p2:Person {name: assoc.person2})
-    MERGE (p1)-[:ASSOCIATED_WITH {relationship: assoc.relationship}]->(p2)
+    MERGE (p1)-[r:ASSOCIATED_WITH {relationship: assoc.relationship}]->(p2)
+      ON CREATE SET r.case_id = $case_id
+      ON MATCH SET r.case_id = coalesce(r.case_id, $case_id)
     """
     if extracted_data.get("associates"):
-        db.execute_query(merge_associates_query, {"associates": extracted_data["associates"]})
+        db.execute_query(merge_associates_query, {"associates": extracted_data["associates"], "case_id": active_case})
 
     return {
         "status": "success",
         "file": source_label,
+        "case_id": active_case,
         "extracted_intelligence": extracted_data,
         "total_persons_extracted": len(extracted_data.get("persons", [])),
         "total_phones_linked": len(associations)

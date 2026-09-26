@@ -56,15 +56,20 @@ def _normalize_col_names(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def ingest_cdr_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.DataFrame]] = None) -> Dict[str, Any]:
+def ingest_cdr_data(
+    file_source: Optional[Union[str, bytes, io.StringIO, pd.DataFrame]] = None,
+    case_id: Optional[str] = "FIR-992/2026"
+) -> Dict[str, Any]:
     """
     Reads CDR logs CSV/DataFrame/Upload, standardizes headers, batches records,
-    and executes UNWIND Cypher queries to create PhoneNumber nodes and [:CALLED] relationship edges.
+    and executes UNWIND Cypher queries to create PhoneNumber nodes and [:CALLED] relationship edges,
+    tagging them with the active case_id.
     """
     df, source_label = _load_dataframe_from_source(file_source, ["CDR_Logs.csv", "e:/SIH26189/backend/CDR_Logs.csv", "e:/SIH26189/CDR_Logs.csv"])
     df = _normalize_col_names(df)
 
-    logger.info(f"Ingesting CDR Data from: {source_label} ({len(df)} rows)")
+    active_case = str(case_id or "FIR-992/2026").strip()
+    logger.info(f"Ingesting CDR Data from: {source_label} ({len(df)} rows, Case: {active_case})")
 
     # Validate required CDR schema columns
     has_caller = any(c in df.columns for c in ['caller_number', 'caller', 'calling_number', 'from_number', 'caller_msisdn', 'source', 'from'])
@@ -113,7 +118,8 @@ def ingest_cdr_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Data
             "receiver_number": r_num,
             "timestamp": timestamp,
             "duration": int(duration_col.iloc[i]),
-            "tower": tower_col.iloc[i] if tower_col.iloc[i] and tower_col.iloc[i] != 'nan' else "Unknown Tower"
+            "tower": tower_col.iloc[i] if tower_col.iloc[i] and tower_col.iloc[i] != 'nan' else "Unknown Tower",
+            "case_id": active_case
         })
 
     if not records:
@@ -129,16 +135,22 @@ def ingest_cdr_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Data
     UNWIND $batch AS row
     // Merge caller and receiver phone nodes idempotently
     MERGE (caller:PhoneNumber {number: row.caller_number})
-      ON CREATE SET caller.number = row.caller_number
+      ON CREATE SET caller.number = row.caller_number,
+                    caller.case_id = row.case_id
+      ON MATCH SET caller.case_id = coalesce(caller.case_id, row.case_id)
     MERGE (receiver:PhoneNumber {number: row.receiver_number})
-      ON CREATE SET receiver.number = row.receiver_number
+      ON CREATE SET receiver.number = row.receiver_number,
+                    receiver.case_id = row.case_id
+      ON MATCH SET receiver.case_id = coalesce(receiver.case_id, row.case_id)
 
     // Merge CALLED relationship to prevent duplicate call edges
     MERGE (caller)-[c:CALLED {timestamp: row.timestamp}]->(receiver)
       ON CREATE SET c.duration = row.duration,
-                    c.tower = row.tower
+                    c.tower = row.tower,
+                    c.case_id = row.case_id
       ON MATCH SET c.duration = row.duration,
-                   c.tower = row.tower
+                   c.tower = row.tower,
+                   c.case_id = coalesce(c.case_id, row.case_id)
     """
 
     total_records = len(records)
@@ -146,25 +158,30 @@ def ingest_cdr_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Data
         batch = records[i:i + BATCH_SIZE]
         db.execute_query(cypher_query, {"batch": batch})
 
-    logger.info(f"Successfully ingested {total_records} CDR records into Neo4j from {source_label}.")
+    logger.info(f"Successfully ingested {total_records} CDR records into Neo4j from {source_label} (Case: {active_case}).")
     return {
         "status": "success",
         "file": source_label,
         "records_ingested": total_records,
-        "relationship": "CALLED"
+        "relationship": "CALLED",
+        "case_id": active_case
     }
 
 
-def ingest_bank_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.DataFrame]] = None) -> Dict[str, Any]:
+def ingest_bank_data(
+    file_source: Optional[Union[str, bytes, io.StringIO, pd.DataFrame]] = None,
+    case_id: Optional[str] = "FIR-992/2026"
+) -> Dict[str, Any]:
     """
     Reads Bank Transactions CSV/DataFrame/Upload, standardizes headers, batches records,
     and executes UNWIND Cypher queries to create Person and BankAccount nodes,
-    [:OWNS_ACCOUNT] edges, and [:TRANSFERRED_TO] edges.
+    [:OWNS_ACCOUNT] edges, and [:TRANSFERRED_TO] edges, tagging them with the active case_id.
     """
     df, source_label = _load_dataframe_from_source(file_source, ["Bank_Transactions.csv", "e:/SIH26189/backend/Bank_Transactions.csv", "e:/SIH26189/Bank_Transactions.csv"])
     df = _normalize_col_names(df)
 
-    logger.info(f"Ingesting Bank Transactions from: {source_label} ({len(df)} rows)")
+    active_case = str(case_id or "FIR-992/2026").strip()
+    logger.info(f"Ingesting Bank Transactions from: {source_label} ({len(df)} rows, Case: {active_case})")
 
     # Validate required Bank schema columns
     has_sender = any(c in df.columns for c in ['sender_account', 'sender_acc', 'from_account', 'payer_account', 'debit_account', 'account_from', 'sender_account_no', 'sender_name', 'sender'])
@@ -224,7 +241,8 @@ def ingest_bank_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Dat
             "receiver_phone": r_phone,
             "amount": amt_val,
             "date": d_val,
-            "remarks": rem_val
+            "remarks": rem_val,
+            "case_id": active_case
         })
 
     if not records:
@@ -240,27 +258,37 @@ def ingest_bank_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Dat
     UNWIND $batch AS row
     // Sender Person & BankAccount
     MERGE (senderPerson:Person {name: row.sender_name})
-      ON CREATE SET senderPerson.name = row.sender_name
+      ON CREATE SET senderPerson.name = row.sender_name,
+                    senderPerson.case_id = row.case_id
+      ON MATCH SET senderPerson.case_id = coalesce(senderPerson.case_id, row.case_id)
     MERGE (senderAcc:BankAccount {account_id: row.sender_account})
-      ON CREATE SET senderAcc.account_id = row.sender_account
+      ON CREATE SET senderAcc.account_id = row.sender_account,
+                    senderAcc.case_id = row.case_id
+      ON MATCH SET senderAcc.case_id = coalesce(senderAcc.case_id, row.case_id)
     MERGE (senderPerson)-[:OWNS_ACCOUNT]->(senderAcc)
 
     // Link Sender Phone if provided
     FOREACH (_ IN CASE WHEN row.sender_phone IS NOT NULL AND row.sender_phone <> '' AND row.sender_phone <> 'nan' THEN [1] ELSE [] END |
       MERGE (sPhone:PhoneNumber {number: row.sender_phone})
+        ON CREATE SET sPhone.case_id = row.case_id
       MERGE (senderPerson)-[:OWNS_PHONE]->(sPhone)
     )
 
     // Receiver Person & BankAccount
     MERGE (receiverPerson:Person {name: row.receiver_name})
-      ON CREATE SET receiverPerson.name = row.receiver_name
+      ON CREATE SET receiverPerson.name = row.receiver_name,
+                    receiverPerson.case_id = row.case_id
+      ON MATCH SET receiverPerson.case_id = coalesce(receiverPerson.case_id, row.case_id)
     MERGE (receiverAcc:BankAccount {account_id: row.receiver_account})
-      ON CREATE SET receiverAcc.account_id = row.receiver_account
+      ON CREATE SET receiverAcc.account_id = row.receiver_account,
+                    receiverAcc.case_id = row.case_id
+      ON MATCH SET receiverAcc.case_id = coalesce(receiverAcc.case_id, row.case_id)
     MERGE (receiverPerson)-[:OWNS_ACCOUNT]->(receiverAcc)
 
     // Link Receiver Phone if provided
     FOREACH (_ IN CASE WHEN row.receiver_phone IS NOT NULL AND row.receiver_phone <> '' AND row.receiver_phone <> 'nan' THEN [1] ELSE [] END |
       MERGE (rPhone:PhoneNumber {number: row.receiver_phone})
+        ON CREATE SET rPhone.case_id = row.case_id
       MERGE (receiverPerson)-[:OWNS_PHONE]->(rPhone)
     )
 
@@ -272,7 +300,12 @@ def ingest_bank_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Dat
     }]->(receiverAcc)
       ON CREATE SET t.amount = row.amount,
                     t.date = row.date,
-                    t.remarks = row.remarks
+                    t.remarks = row.remarks,
+                    t.case_id = row.case_id
+      ON MATCH SET t.amount = row.amount,
+                   t.date = row.date,
+                   t.remarks = row.remarks,
+                   t.case_id = coalesce(t.case_id, row.case_id)
     """
 
     total_records = len(records)
@@ -280,10 +313,11 @@ def ingest_bank_data(file_source: Optional[Union[str, bytes, io.StringIO, pd.Dat
         batch = records[i:i + BATCH_SIZE]
         db.execute_query(cypher_query, {"batch": batch})
 
-    logger.info(f"Successfully ingested {total_records} Bank Transaction records into Neo4j from {source_label}.")
+    logger.info(f"Successfully ingested {total_records} Bank Transaction records into Neo4j from {source_label} (Case: {active_case}).")
     return {
         "status": "success",
         "file": source_label,
         "records_ingested": total_records,
-        "relationships": ["OWNS_ACCOUNT", "TRANSFERRED_TO"]
+        "relationships": ["OWNS_ACCOUNT", "TRANSFERRED_TO"],
+        "case_id": active_case
     }

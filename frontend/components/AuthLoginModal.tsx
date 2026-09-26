@@ -7,11 +7,9 @@ import {
   Shield,
   KeyRound,
   UserCheck,
-  Lock,
   X,
   RefreshCw,
-  CheckCircle2,
-  ShieldAlert,
+  Check,
   User,
   Crown
 } from "lucide-react";
@@ -33,6 +31,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
   currentUsername,
   onLoginSuccess,
 }) => {
+  const [activeTab, setActiveTab] = useState<"roles" | "custom">("roles");
   const [username, setUsername] = useState<string>("admin");
   const [password, setPassword] = useState<string>("admin123");
   const [loading, setLoading] = useState<boolean>(false);
@@ -42,27 +41,33 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
       role: "Investigator",
       username: "investigator",
       password: "investigator123",
-      title: "Field Investigator (Restricted RBAC)",
-      desc: "Masked PII for privacy compliance, read-only case analysis. Purge operations blocked (HTTP 403).",
-      badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
+      name: "Field Investigator",
+      badge: "Masked PII",
+      color: "border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-blue-900",
+      activeRing: "ring-2 ring-blue-500 border-blue-400 bg-blue-50/80",
+      badgeColor: "bg-blue-100 text-blue-800",
       icon: User,
     },
     {
       role: "Supervisor",
       username: "supervisor",
       password: "supervisor123",
-      title: "Case Supervisor (Operational RBAC)",
-      desc: "Full unmasked PII, active learning feedback confirmation, multi-source evidence synthesis.",
-      badgeColor: "bg-purple-100 text-purple-800 border-purple-200",
+      name: "Case Supervisor",
+      badge: "Full PII & AI",
+      color: "border-purple-200 bg-purple-50/50 hover:bg-purple-50 text-purple-900",
+      activeRing: "ring-2 ring-purple-500 border-purple-400 bg-purple-50/80",
+      badgeColor: "bg-purple-100 text-purple-800",
       icon: UserCheck,
     },
     {
       role: "Admin",
       username: "admin",
       password: "admin123",
-      title: "Lead Intelligence Admin (Full RBAC)",
-      desc: "Full system administration, database purge rights, immutable audit ledger blockchain verification.",
-      badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
+      name: "System Admin",
+      badge: "Full Access",
+      color: "border-amber-200 bg-amber-50/50 hover:bg-amber-50 text-amber-900",
+      activeRing: "ring-2 ring-amber-500 border-amber-400 bg-amber-50/80",
+      badgeColor: "bg-amber-100 text-amber-800",
       icon: Crown,
     },
   ];
@@ -78,15 +83,16 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
       if (res.data?.access_token) {
         localStorage.setItem("mha_token", res.data.access_token);
         localStorage.setItem("mha_user", JSON.stringify(res.data.user));
-        toast.success(`Authenticated as ${res.data.user?.role}`, {
-          description: `Logged in as ${res.data.user?.full_name} (${res.data.user?.username}). RBAC permissions active.`,
+        axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.access_token}`;
+        toast.success(`Role switched to ${res.data.user?.role}`, {
+          description: `Active as ${res.data.user?.full_name} (${res.data.user?.username})`,
         });
         onLoginSuccess(res.data.access_token, res.data.user);
         onClose();
       }
     } catch (err: any) {
       toast.error("Authentication Failed", {
-        description: err.response?.data?.detail || "Invalid investigator credentials.",
+        description: err.response?.data?.detail || "Invalid credentials.",
       });
     } finally {
       setLoading(false);
@@ -102,125 +108,149 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="p-4 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
-              <Shield className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+        {/* Compact Clean Header */}
+        <div className="p-4 px-5 border-b border-slate-100 flex items-center justify-between bg-white">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900 shrink-0">
+              <Shield className="w-4 h-4" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold tracking-wide">National Intelligence Grid Authentication</h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-400/20 border border-blue-400/40 text-blue-200">
-                  RBAC
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">Role-Based Access Control session manager</p>
+              <h3 className="text-sm font-bold text-slate-900">Access Control & Role Switch</h3>
+              <p className="text-[11px] text-slate-500">Select an officer role to test RBAC permissions</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Current Active Session Status */}
-        <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-          <span className="text-slate-600">Current Session:</span>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-900">{currentUsername || "admin"}</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 border border-amber-300 text-amber-800">
-              {currentRole || "Admin"}
-            </span>
+        {/* Tab Switcher */}
+        <div className="p-3 px-5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center bg-slate-200/70 p-0.5 rounded-lg text-xs font-semibold">
+            <button
+              onClick={() => setActiveTab("roles")}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                activeTab === "roles"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              1-Click Switch
+            </button>
+            <button
+              onClick={() => setActiveTab("custom")}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                activeTab === "custom"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Custom Login
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-400 text-[11px]">Active:</span>
+            <span className="font-bold text-slate-800 text-xs">{currentRole || "Admin"}</span>
           </div>
         </div>
 
-        {/* 1-Click Demo Accounts */}
-        <div className="p-4 space-y-2.5">
-          <label className="text-[11px] font-bold text-slate-600 block uppercase tracking-wide">
-            1-Click Demonstration Roles (Official Ministry Credentials)
-          </label>
+        {/* Body Content */}
+        <div className="p-5">
+          {activeTab === "roles" ? (
+            <div className="space-y-2.5">
+              {demoAccounts.map((acc) => {
+                const IconComp = acc.icon;
+                const isActive = (currentRole.toLowerCase() === acc.role.toLowerCase());
+                return (
+                  <button
+                    key={acc.username}
+                    onClick={() => selectDemoRole(acc)}
+                    disabled={loading}
+                    className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                      isActive ? acc.activeRing : acc.color
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        isActive ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-700"
+                      }`}>
+                        <IconComp className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                          {acc.name}
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${acc.badgeColor}`}>
+                            {acc.badge}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          {acc.username}
+                        </div>
+                      </div>
+                    </div>
 
-          {demoAccounts.map((acc) => {
-            const IconComponent = acc.icon;
-            const isActive = (currentRole.toLowerCase() === acc.role.toLowerCase());
-            return (
+                    {isActive ? (
+                      <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                        <Check className="w-3 h-3" /> Active
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">
+                        Switch →
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Username</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 transition-all"
+                />
+              </div>
+
               <button
-                key={acc.username}
-                onClick={() => selectDemoRole(acc)}
+                onClick={() => handleLogin()}
                 disabled={loading}
-                className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
-                  isActive
-                    ? "bg-blue-50/70 border-blue-300 ring-1 ring-blue-300"
-                    : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                }`}
+                className="w-full mt-2 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
               >
-                <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shrink-0 mt-0.5">
-                  <IconComponent className="w-4 h-4 text-blue-900" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900">{acc.title}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${acc.badgeColor}`}>
-                      {acc.role}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{acc.desc}</p>
-                  <div className="text-[10px] font-mono text-slate-400 mt-1">
-                    Credentials: <code>{acc.username}</code> / <code>{acc.password}</code>
-                  </div>
-                </div>
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-3.5 h-3.5" />
+                    Sign In
+                  </>
+                )}
               </button>
-            );
-          })}
-        </div>
-
-        {/* Manual Login Fallback */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 block mb-1">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900"
-              />
             </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 block mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={() => handleLogin()}
-            disabled={loading}
-            className="w-full py-2 rounded-lg bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                Authenticating Session...
-              </>
-            ) : (
-              <>
-                <KeyRound className="w-3.5 h-3.5" />
-                Authenticate Session
-              </>
-            )}
-          </button>
+          )}
         </div>
       </div>
     </div>

@@ -33,7 +33,9 @@ import {
   Link2,
   Share2,
   BarChart3,
-  Bot
+  Bot,
+  FolderOpen,
+  Trash2
 } from "lucide-react";
 import cytoscape, { Core, ElementDefinition } from "cytoscape";
 import fcose from "cytoscape-fcose";
@@ -69,6 +71,10 @@ interface NetworkGraphPanelProps {
   refreshTrigger?: number;
   onRefreshLiveGraph?: () => void;
   onOpenBriefing?: (entityName: string) => void;
+  selectedCaseId?: string;
+  onSelectCaseId?: (caseId: string) => void;
+  activeCases?: Array<{ case_id: string; title?: string; node_count?: number }>;
+  onDeleteCase?: (caseId: string) => void;
 }
 
 // Transform raw elements into compound graph elements grouped by cluster
@@ -180,6 +186,10 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
   refreshTrigger = 0,
   onRefreshLiveGraph,
   onOpenBriefing,
+  selectedCaseId = "ALL",
+  onSelectCaseId,
+  activeCases = [],
+  onDeleteCase,
 }) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -210,7 +220,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     () => [
       // Base Node (Circle with white icon inside, large clean 2-tier badge below)
       {
-        selector: "node:not([?isClusterParent])",
+        selector: "node[!isClusterParent]",
         style: {
           shape: "ellipse",
           width: 48,
@@ -229,7 +239,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           label: "data(displayLabel)",
           color: "#0f172a",
           "font-size": "11px",
-          "font-weight": "800",
+          "font-weight": "bold",
           "font-family": "system-ui, -apple-system, sans-serif",
           "text-valign": "bottom",
           "text-halign": "center",
@@ -243,15 +253,14 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           "text-border-opacity": 0.9,
           "text-border-width": 1.5,
           "text-border-color": "#cbd5e1",
-          "shadow-blur": 10,
-          "shadow-color": "rgba(0, 0, 0, 0.12)",
-          "shadow-opacity": 0.8,
-          transition: "opacity 0.25s ease-in-out, border-width 0.2s ease-in-out",
+          "underlay-color": "#000000",
+          "underlay-opacity": 0.08,
+          "underlay-padding": 3,
         },
       },
       // Key Suspect Person Node (BOLD RED, Glowing Ring)
       {
-        selector: "node[type='Person'][?isKeySuspect]:not([?isClusterParent])",
+        selector: "node[type='Person'][?isKeySuspect][!isClusterParent]",
         style: {
           width: 58,
           height: 58,
@@ -259,15 +268,16 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           "border-color": "#fef08a",
           "border-width": 4.5,
           "background-image": SVG_ICONS.person,
-          "shadow-blur": 18,
-          "shadow-color": "rgba(220, 38, 38, 0.45)",
+          "underlay-color": "#dc2626",
+          "underlay-opacity": 0.3,
+          "underlay-padding": 5,
           "text-border-color": "#fca5a5",
           "text-border-width": 2,
         },
       },
       // Standard Person Node (Royal Navy)
       {
-        selector: "node[type='Person'][!isKeySuspect]:not([?isClusterParent])",
+        selector: "node[type='Person'][!isKeySuspect][!isClusterParent]",
         style: {
           width: 48,
           height: 48,
@@ -279,7 +289,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       },
       // PhoneNumber Node (EMERALD GREEN circle with Phone Icon)
       {
-        selector: "node[type='PhoneNumber']:not([?isClusterParent])",
+        selector: "node[type='PhoneNumber'][!isClusterParent]",
         style: {
           width: 46,
           height: 46,
@@ -291,7 +301,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       },
       // BankAccount Node (SLATE / CYAN BLUE circle with Bank Icon)
       {
-        selector: "node[type='BankAccount']:not([?isClusterParent])",
+        selector: "node[type='BankAccount'][!isClusterParent]",
         style: {
           width: 46,
           height: 46,
@@ -303,7 +313,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       },
       // Location / Tower Node (PURPLE circle with Map Pin Icon)
       {
-        selector: "node[type='Location']:not([?isClusterParent])",
+        selector: "node[type='Location'][!isClusterParent]",
         style: {
           width: 46,
           height: 46,
@@ -315,7 +325,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       },
       // Vehicle Node (AMBER circle with Car Icon)
       {
-        selector: "node[type='Vehicle']:not([?isClusterParent])",
+        selector: "node[type='Vehicle'][!isClusterParent]",
         style: {
           width: 46,
           height: 46,
@@ -327,7 +337,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       },
       // Hover & Selected Node State (Investigative Focus Glow)
       {
-        selector: "node:not([?isClusterParent]):selected, node:not([?isClusterParent]).hovered",
+        selector: "node[!isClusterParent]:selected, node[!isClusterParent].hovered",
         style: {
           "border-color": "#ea580c",
           "border-width": 5,
@@ -335,9 +345,11 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           "text-border-color": "#ea580c",
           color: "#ffffff",
           "font-size": "12px",
+          "font-weight": "bold",
           "z-index": 9999,
-          "shadow-blur": 22,
-          "shadow-color": "rgba(234, 88, 12, 0.6)",
+          "underlay-color": "#ea580c",
+          "underlay-opacity": 0.4,
+          "underlay-padding": 6,
         },
       },
       // Dimmed state for non-focused elements
@@ -374,7 +386,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           "text-valign": "top",
           "text-halign": "center",
           "font-size": "12px",
-          "font-weight": "800",
+          "font-weight": "bold",
           color: "#854d0e",
           padding: 60,
           "text-background-opacity": 0.98,
@@ -429,7 +441,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         style: {
           label: "data(label)",
           "font-size": "10px",
-          "font-weight": "700",
+          "font-weight": "bold",
           "font-family": "system-ui, -apple-system, sans-serif",
           color: "#1e293b",
           "text-background-opacity": 0.96,
@@ -447,7 +459,6 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           "line-color": "#64748b",
           "target-arrow-color": "#64748b",
           "line-style": "solid",
-          transition: "opacity 0.25s ease-in-out",
         },
       },
       // Predicted / Potential Link / Smurfing Structuring (Crimson Red Dashed Arrow)
@@ -476,7 +487,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           color: "#ffffff",
           "text-background-color": "#0f172a",
           "text-border-color": "#ea580c",
-          "font-weight": "800",
+          "font-weight": "bold",
         },
       },
     ],
@@ -609,15 +620,15 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         const cyInst = cy;
 
         // Hover events
-        cyInst.on("mouseover", "node:not([?isClusterParent]), edge", (evt) => {
+        cyInst.on("mouseover", "node[!isClusterParent], edge", (evt) => {
           evt.target.addClass("hovered");
         });
-        cyInst.on("mouseout", "node:not([?isClusterParent]), edge", (evt) => {
+        cyInst.on("mouseout", "node[!isClusterParent], edge", (evt) => {
           evt.target.removeClass("hovered");
         });
 
         // Click on node: Trigger 1-Hop Focus Highlighting & Extract Evidence Connections
-        cyInst.on("tap", "node:not([?isClusterParent])", (evt) => {
+        cyInst.on("tap", "node[!isClusterParent]", (evt) => {
           const node = evt.target;
           const neighborhood = node.neighborhood();
           const connectedPhones: string[] = [];
@@ -724,19 +735,18 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
       elements: [],
       style: cytoscapeStylesheet,
       layout: layoutConfig as any,
-      wheelSensitivity: 0.35,
     });
 
     cyRef.current = cy;
 
-    cy.on("mouseover", "node:not([?isClusterParent]), edge", (evt) => {
+    cy.on("mouseover", "node[!isClusterParent], edge", (evt) => {
       evt.target.addClass("hovered");
     });
-    cy.on("mouseout", "node:not([?isClusterParent]), edge", (evt) => {
+    cy.on("mouseout", "node[!isClusterParent], edge", (evt) => {
       evt.target.removeClass("hovered");
     });
 
-    cy.on("tap", "node:not([?isClusterParent])", (evt) => {
+    cy.on("tap", "node[!isClusterParent]", (evt) => {
       const node = evt.target;
       const neighborhood = node.neighborhood();
       const connectedPhones: string[] = [];
@@ -808,20 +818,27 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
     };
   }, [cytoscapeStylesheet, layoutConfig]);
 
-  // Fetch Live Graph Topology from Neo4j (Supports Temporal Scrubber)
+  // Fetch Live Graph Topology from Neo4j (Supports Case Docket Isolation & Temporal Scrubber)
   const fetchLiveGraph = useCallback(
-    async (isSilent = false, overrideStart?: string, overrideEnd?: string) => {
+    async (isSilent = false, overrideStart?: string, overrideEnd?: string, overrideCase?: string) => {
       setIsLoadingGraph(true);
       try {
         const s = overrideStart !== undefined ? overrideStart : startDate;
         const e = overrideEnd !== undefined ? overrideEnd : endDate;
+        const c = overrideCase !== undefined ? overrideCase : selectedCaseId;
 
         const params = new URLSearchParams();
         if (s && s.trim()) params.append("start_date", s.trim());
         if (e && e.trim()) params.append("end_date", e.trim());
+        if (c && c.trim() && c.toUpperCase() !== "ALL") params.append("case_id", c.trim());
 
         const queryString = params.toString() ? `?${params.toString()}` : "";
-        const response = await axios.get(`${apiBaseUrl}/api/v1/graph/topology${queryString}`);
+        const token = typeof window !== "undefined" ? localStorage.getItem("mha_token") : null;
+        const headers: Record<string, string> = {};
+        if (token && token !== "undefined" && token !== "null") {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const response = await axios.get(`${apiBaseUrl}/api/v1/graph/topology${queryString}`, { headers });
         const data = response.data;
 
         let rawNodes: ElementDefinition[] = [];
@@ -843,8 +860,9 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         if (!isSilent) {
           if (combinedElements.length > 0) {
             const filterInfo = (s || e) ? ` [Filtered: ${s || "..."} to ${e || "..."}]` : "";
+            const caseInfo = (c && c !== "ALL") ? ` for Case ${c}` : "";
             toast.success("Graph Synchronized", {
-              description: `Loaded ${rawNodes.length} entities & ${rawEdges.length} relationships from Neo4j${filterInfo}.`,
+              description: `Loaded ${rawNodes.length} entities & ${rawEdges.length} relationships from Neo4j${caseInfo}${filterInfo}.`,
             });
           }
         }
@@ -862,7 +880,7 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
         setIsLoadingGraph(false);
       }
     },
-    [apiBaseUrl, onRefreshLiveGraph, startDate, endDate]
+    [apiBaseUrl, onRefreshLiveGraph, startDate, endDate, selectedCaseId]
   );
 
   // Push filtered elements whenever data or filters change
@@ -1093,7 +1111,38 @@ export const NetworkGraphPanel: React.FC<NetworkGraphPanelProps> = ({
           </div>
 
           {/* Layout Switcher & Action Controls */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Case Docket Selector */}
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-xs text-slate-700 shadow-2xs">
+              <FolderOpen className="w-3 h-3 text-blue-600 mr-1 shrink-0" />
+              <select
+                value={selectedCaseId || "ALL"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (onSelectCaseId) onSelectCaseId(val);
+                  fetchLiveGraph(false, undefined, undefined, val);
+                }}
+                className="bg-transparent text-xs font-bold text-blue-950 outline-none cursor-pointer max-w-[170px] truncate"
+              >
+                <option value="ALL">📁 All Cases (Cross-Syndicate)</option>
+                {activeCases && activeCases.map((c) => (
+                  <option key={c.case_id} value={c.case_id}>
+                    📁 Case: {c.case_id} ({c.node_count || 0})
+                  </option>
+                ))}
+              </select>
+              {selectedCaseId && selectedCaseId !== "ALL" && onDeleteCase && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteCase(selectedCaseId)}
+                  className="ml-1 p-0.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded cursor-pointer transition-colors"
+                  title={`Delete Case Docket '${selectedCaseId}' from graph`}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
             <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-xs text-slate-700 shadow-2xs">
               <Layers className="w-3 h-3 text-slate-500 mr-1" />
               <select

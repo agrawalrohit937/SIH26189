@@ -11,25 +11,29 @@ import {
   CheckCircle2,
   AlertCircle,
   Activity,
-  Server,
   ShieldCheck,
   X,
-  FileCheck2,
-  FolderOpen,
   PhoneCall,
   CreditCard,
-  RotateCcw,
-  Building,
   Check,
   Sparkles,
-  ArrowUpRight,
-  FileUp
+  FileUp,
+  Database,
+  Play,
+  Hash,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  FileSignature,
+  FileCheck
 } from "lucide-react";
 
 interface DataIngestionPanelProps {
   apiBaseUrl: string;
   onDataIngested?: () => void;
   hideHeader?: boolean;
+  activeCaseId?: string;
+  onSelectCaseId?: (caseId: string) => void;
 }
 
 interface IngestLog {
@@ -40,749 +44,679 @@ interface IngestLog {
   message: string;
 }
 
+interface CaseItem {
+  case_id: string;
+  node_count: number;
+  edge_count: number;
+}
+
 export const DataIngestionPanel: React.FC<DataIngestionPanelProps> = ({
   apiBaseUrl,
   onDataIngested,
   hideHeader = false,
+  activeCaseId,
+  onSelectCaseId,
 }) => {
-  // --- Zone 1: Financial Records (Bank_Transactions.csv) ---
+  const [activeTab, setActiveTab] = useState<"files" | "text" | "demo">("files");
+
+  // Files
   const [bankFile, setBankFile] = useState<File | null>(null);
-  const [bankDragging, setBankDragging] = useState(false);
-  const [bankLoading, setBankLoading] = useState(false);
   const [bankUploaded, setBankUploaded] = useState(false);
+  const [bankStats, setBankStats] = useState<number | null>(null);
   const bankInputRef = useRef<HTMLInputElement | null>(null);
 
-  // --- Zone 2: Telecom Records (CDR_Logs.csv) ---
   const [cdrFile, setCdrFile] = useState<File | null>(null);
-  const [cdrDragging, setCdrDragging] = useState(false);
-  const [cdrLoading, setCdrLoading] = useState(false);
   const [cdrUploaded, setCdrUploaded] = useState(false);
+  const [cdrStats, setCdrStats] = useState<number | null>(null);
   const cdrInputRef = useRef<HTMLInputElement | null>(null);
 
-  // --- Zone 3: Case Files / FIR (TXT or PDF) ---
   const [firFile, setFirFile] = useState<File | null>(null);
-  const [firDragging, setFirDragging] = useState(false);
-  const [firLoading, setFirLoading] = useState(false);
   const [firUploaded, setFirUploaded] = useState(false);
+  const [firStats, setFirStats] = useState<number | null>(null);
   const firInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Direct Text
+  const [firText, setFirText] = useState<string>("");
+  const [firTextLoading, setFirTextLoading] = useState(false);
+
+  // States
   const [masterLoading, setMasterLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [targetCaseId, setTargetCaseId] = useState<string>(activeCaseId || "FIR-992/2026");
+  const [existingCases, setExistingCases] = useState<CaseItem[]>([]);
   const [logs, setLogs] = useState<IngestLog[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [currentStep, setCurrentStep] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    fetchCases();
     setLogs([
       {
         id: "log-init",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         type: "system",
         status: "success",
-        message: "CCTNS/NATGRID Pipeline initialized. Ready for evidence intake.",
+        message: "Pipeline initialized. Ready for evidence intake.",
       },
     ]);
   }, []);
 
-  const addLog = (
-    type: "bank" | "cdr" | "fir" | "system",
-    status: "success" | "error" | "pending",
-    message: string
-  ) => {
-    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  useEffect(() => {
+    if (activeCaseId) {
+      setTargetCaseId(activeCaseId);
+    }
+  }, [activeCaseId]);
+
+  const fetchCases = async () => {
+    try {
+      const res = await axios.get(`${apiBaseUrl}/api/v1/cases`);
+      if (res.data?.cases) {
+        setExistingCases(res.data.cases);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const addLog = (type: "bank" | "cdr" | "fir" | "system", status: "success" | "error" | "pending", message: string) => {
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     setLogs((prev) => [
-      {
-        id: `log-${Date.now()}-${Math.random()}`,
-        timestamp: time,
-        type,
-        status,
-        message,
-      },
+      { id: `log-${Date.now()}-${Math.random()}`, timestamp: time, type, status, message },
       ...prev.slice(0, 19),
     ]);
   };
 
-  const formatFileSize = (bytes: number) => {
+  const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // --- Process Bank Transactions ---
-  const handleProcessBank = async () => {
-    if (!bankFile) {
-      toast.warning("No Banking Ledger Selected", {
-        description: "Please browse or drag & drop a bank transaction CSV file first.",
-      });
-      return;
-    }
-
-    setBankLoading(true);
-    addLog("bank", "pending", `Ingesting banking ledger (${bankFile.name})...`);
-
-    try {
-      const formData = new FormData();
-      formData.append("bank_file", bankFile);
-      const response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const recs = response.data?.data?.bank_ingestion?.records_ingested || 0;
-      setBankUploaded(true);
-      toast.success("Financial Records Ingested", {
-        description: `Successfully mapped ${recs} banking transactions to graph.`,
-      });
-      addLog("bank", "success", `Mapped ${recs} transaction records into Neo4j.`);
-      if (onDataIngested) onDataIngested();
-    } catch (err: any) {
-      const errorMsg =
-        err.response?.data?.detail || err.message || "Failed to process bank transactions.";
-      toast.error("Financial Ingestion Failed", { description: errorMsg });
-      addLog("bank", "error", errorMsg);
-    } finally {
-      setBankLoading(false);
-    }
+  const handleGenerateNewCase = () => {
+    const randomDocket = `FIR-${Math.floor(100 + Math.random() * 900)}/2026`;
+    setTargetCaseId(randomDocket);
+    if (onSelectCaseId) onSelectCaseId(randomDocket);
+    toast.info(`Target Docket: ${randomDocket}`);
   };
 
-  // --- Process CDR Logs ---
-  const handleProcessCdr = async () => {
-    if (!cdrFile) {
-      toast.warning("No CDR Logs Selected", {
-        description: "Please browse or drag & drop a telecom CDR CSV file first.",
-      });
-      return;
-    }
-
-    setCdrLoading(true);
-    addLog("cdr", "pending", `Ingesting telecom CDR logs (${cdrFile.name})...`);
-
-    try {
-      const formData = new FormData();
-      formData.append("cdr_file", cdrFile);
-      const response = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const recs = response.data?.data?.cdr_ingestion?.records_ingested || 0;
-      setCdrUploaded(true);
-      toast.success("Telecom Records Ingested", {
-        description: `Successfully mapped ${recs} CDR call records to graph.`,
-      });
-      addLog("cdr", "success", `Mapped ${recs} CDR call records into Neo4j.`);
-      if (onDataIngested) onDataIngested();
-    } catch (err: any) {
-      const errorMsg =
-        err.response?.data?.detail || err.message || "Failed to process CDR logs.";
-      toast.error("Telecom Ingestion Failed", { description: errorMsg });
-      addLog("cdr", "error", errorMsg);
-    } finally {
-      setCdrLoading(false);
-    }
-  };
-
-  // --- Process FIR Case File ---
-  const handleProcessFir = async () => {
-    if (!firFile) {
-      toast.warning("No FIR / Case Docket Selected", {
-        description: "Please browse or drag & drop an FIR text, PDF, or image document first.",
-      });
-      return;
-    }
-
-    setFirLoading(true);
-    addLog("fir", "pending", `Extracting entities from (${firFile.name})...`);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", firFile);
-      const response = await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const suspects = response.data?.data?.fir_extraction?.total_persons_extracted || 0;
-      setFirUploaded(true);
-      toast.success("FIR Case Intelligence Ingested", {
-        description: `Extracted ${suspects} entities & linked phone numbers into graph.`,
-      });
-      addLog("fir", "success", `Extracted ${suspects} suspects & associates from FIR.`);
-      if (onDataIngested) onDataIngested();
-    } catch (err: any) {
-      const errorMsg =
-        err.response?.data?.detail || err.message || "Failed to extract FIR intelligence.";
-      toast.error("FIR Extraction Error", { description: errorMsg });
-      addLog("fir", "error", errorMsg);
-    } finally {
-      setFirLoading(false);
-    }
-  };
-
-  // --- Master Ingest All ---
+  // Process All Staged Files
   const handleIngestAll = async () => {
     if (!bankFile && !cdrFile && !firFile) {
-      toast.warning("No Evidence Files Staged", {
-        description: "Please select or drop at least one Banking CSV, CDR CSV, or FIR Case Docket to ingest.",
-      });
+      toast.warning("Please stage at least one file to ingest.");
       return;
     }
 
     setMasterLoading(true);
-    addLog("system", "pending", "Initiating batch multi-source evidence intake...");
+    setCurrentStep("Ingesting evidence into Neo4j graph...");
+    addLog("system", "pending", `Processing evidence for '${targetCaseId}'...`);
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("mha_token") : null;
+    const authHeaders: Record<string, string> = { "Content-Type": "multipart/form-data" };
+    if (token && token !== "undefined" && token !== "null") {
+      authHeaders["Authorization"] = `Bearer ${token}`;
+    }
 
     try {
-      // 1. Ingest CSVs (CDR & Bank together if present)
       if (cdrFile || bankFile) {
         const csvFormData = new FormData();
         if (cdrFile) csvFormData.append("cdr_file", cdrFile);
         if (bankFile) csvFormData.append("bank_file", bankFile);
+        csvFormData.append("case_id", targetCaseId || "FIR-992/2026");
 
-        await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, csvFormData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        const csvRes = await axios.post(`${apiBaseUrl}/api/v1/ingest/csv`, csvFormData, {
+          headers: authHeaders,
         });
-        if (cdrFile) setCdrUploaded(true);
-        if (bankFile) setBankUploaded(true);
+        if (cdrFile) {
+          setCdrUploaded(true);
+          setCdrStats(csvRes.data?.data?.cdr_ingestion?.records_ingested || 0);
+        }
+        if (bankFile) {
+          setBankUploaded(true);
+          setBankStats(csvRes.data?.data?.bank_ingestion?.records_ingested || 0);
+        }
       }
 
-      // 2. Ingest FIR
       if (firFile) {
         const firFormData = new FormData();
         firFormData.append("file", firFile);
-        await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`, firFormData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        firFormData.append("case_id", targetCaseId || "FIR-992/2026");
+        const firRes = await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`, firFormData, {
+          headers: authHeaders,
         });
         setFirUploaded(true);
+        setFirStats(firRes.data?.data?.fir_extraction?.total_persons_extracted || 0);
       }
 
-      toast.success("Batch Evidence Ingestion Complete", {
-        description: "All uploaded files parsed, entity resolution resolved, and network graph updated.",
+      toast.success("Evidence Ingested Successfully", {
+        description: `Linked to Case '${targetCaseId}'.`,
       });
-      addLog("system", "success", "All uploaded evidence successfully committed into Neo4j.");
+      addLog("system", "success", `Committed files into Case '${targetCaseId}'.`);
+      fetchCases();
       if (onDataIngested) onDataIngested();
     } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || err.message || "Batch ingestion failed.";
-      toast.error("Batch Ingestion Failed", { description: errorMsg });
-      addLog("system", "error", errorMsg);
+      const msg = err.response?.data?.detail || err.message || "Ingestion failed.";
+      toast.error("Ingestion Failed", { description: msg });
+      addLog("system", "error", msg);
     } finally {
       setMasterLoading(false);
+      setCurrentStep(null);
+    }
+  };
+
+  // Direct Text Process
+  const handleProcessDirectText = async () => {
+    if (!firText.trim()) {
+      toast.warning("Please paste or type the FIR narrative.");
+      return;
+    }
+
+    setFirTextLoading(true);
+    setCurrentStep("Extracting entities with Neural NLP...");
+    addLog("fir", "pending", `Parsing narrative for '${targetCaseId}'...`);
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("mha_token") : null;
+    const authHeaders: Record<string, string> = { "Content-Type": "multipart/form-data" };
+    if (token && token !== "undefined" && token !== "null") {
+      authHeaders["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("text", firText);
+      formData.append("case_id", targetCaseId || "FIR-992/2026");
+      const res = await axios.post(`${apiBaseUrl}/api/v1/ingest/fir`, formData, {
+        headers: authHeaders,
+      });
+
+      const suspects = res.data?.data?.fir_extraction?.total_persons_extracted || 0;
+      toast.success("Narrative Processed", {
+        description: `Extracted ${suspects} suspects & mapped to graph.`,
+      });
+      addLog("fir", "success", `Extracted ${suspects} entities into '${targetCaseId}'.`);
+      fetchCases();
+      if (onDataIngested) onDataIngested();
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || "Parsing failed.";
+      toast.error("Extraction Failed", { description: msg });
+      addLog("fir", "error", msg);
+    } finally {
+      setFirTextLoading(false);
+      setCurrentStep(null);
+    }
+  };
+
+  // 1-Click Demo Intake
+  const handleLoadDemoData = async () => {
+    setDemoLoading(true);
+    setCurrentStep("Loading verified syndicate scenario...");
+    addLog("system", "pending", `Loading demonstration dataset for '${targetCaseId}'...`);
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("mha_token") : null;
+    const authHeaders: Record<string, string> = {};
+    if (token && token !== "undefined" && token !== "null") {
+      authHeaders["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      await axios.post(
+        `${apiBaseUrl}/api/v1/ingest/csv?cdr_file_path=CDR_Logs.csv&bank_file_path=Bank_Transactions.csv`,
+        new FormData(),
+        { params: { case_id: targetCaseId || "FIR-992/2026" }, headers: authHeaders }
+      );
+      setBankUploaded(true);
+      setCdrUploaded(true);
+
+      await axios.post(
+        `${apiBaseUrl}/api/v1/ingest/fir?file_path=FIR_Case_992.txt`,
+        new FormData(),
+        { params: { case_id: targetCaseId || "FIR-992/2026" }, headers: authHeaders }
+      );
+      setFirUploaded(true);
+
+      toast.success("Demo Dataset Ingested", {
+        description: `Synthetic network loaded under '${targetCaseId}'.`,
+      });
+      addLog("system", "success", `Loaded demo network into Case '${targetCaseId}'.`);
+      fetchCases();
+      if (onDataIngested) onDataIngested();
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || "Failed to load demo.";
+      toast.error("Demo Load Error", { description: msg });
+      addLog("system", "error", msg);
+    } finally {
+      setDemoLoading(false);
+      setCurrentStep(null);
     }
   };
 
   const stagedCount = (bankFile ? 1 : 0) + (cdrFile ? 1 : 0) + (firFile ? 1 : 0);
+  const isAnyLoading = masterLoading || firTextLoading || demoLoading;
+
+  const sampleNarrative = `FIRST INFORMATION REPORT (FIR NO: 992/2026)
+Police Station: Cyber Crime Cell, Special Task Force, New Delhi
+Date & Time: 14-FEB-2026 10:30 IST
+
+Complainant states that an organized criminal network led by Vikram Malhotra (alias Vicky Hawala, operating phone +91 98101 23456) has orchestrated large-scale banking fraud. Primary associates identified include Suresh Verma (+91 98202 34567) and Ramesh Sharma (+91 98303 45678). Suspect accounts at HDFC and ICICI have recorded systematic smurfing transactions exceeding INR 15 Lakhs. Vehicle DL-01-AB-1234 was identified during field surveillance.`;
 
   return (
-    <div className="flex flex-col h-full font-sans space-y-3.5">
-      {/* Optional Inner Header if not inside modal */}
-      {!hideHeader && (
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
-              <FolderOpen className="w-4 h-4" />
+    <div className="flex flex-col space-y-4 font-sans text-slate-800">
+      {/* ========================================================================= */}
+      {/* 1. TOP BAR: CASE DOCKET & MODE TABS */}
+      {/* ========================================================================= */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        {/* Case Docket Picker */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-500">Case Docket:</span>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={targetCaseId}
+              onChange={(e) => {
+                setTargetCaseId(e.target.value);
+                if (onSelectCaseId) onSelectCaseId(e.target.value);
+              }}
+              placeholder="FIR-992/2026"
+              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-hidden focus:border-blue-600 w-36"
+            />
+            {existingCases.length > 0 && (
+              <select
+                value={targetCaseId}
+                onChange={(e) => {
+                  setTargetCaseId(e.target.value);
+                  if (onSelectCaseId) onSelectCaseId(e.target.value);
+                }}
+                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer focus:outline-hidden"
+              >
+                {existingCases.map((c) => (
+                  <option key={c.case_id} value={c.case_id}>
+                    {c.case_id}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={handleGenerateNewCase}
+              className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+            >
+              + New
+            </button>
+          </div>
+        </div>
+
+        {/* Mode Switcher */}
+        <div className="flex items-center p-0.5 bg-slate-100 rounded-lg text-xs font-medium">
+          <button
+            onClick={() => setActiveTab("files")}
+            className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              activeTab === "files" ? "bg-white text-slate-900 font-bold shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            File Upload {stagedCount > 0 && `(${stagedCount})`}
+          </button>
+          <button
+            onClick={() => setActiveTab("text")}
+            className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              activeTab === "text" ? "bg-white text-slate-900 font-bold shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Text Paste
+          </button>
+          <button
+            onClick={() => setActiveTab("demo")}
+            className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              activeTab === "demo" ? "bg-white text-slate-900 font-bold shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            ⚡ Quick Demo
+          </button>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. TAB 1: CLEAN FILE UPLOAD (3 Clear Cards) */}
+      {/* ========================================================================= */}
+      {activeTab === "files" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* CARD 1: BANKING */}
+            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col justify-between min-h-[140px]">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                    <CreditCard className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Bank Transactions</span>
+                    <span className="text-[10px] text-slate-500">CSV Ledger</span>
+                  </div>
+                </div>
+
+                <input
+                  ref={bankInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setBankFile(e.target.files[0]);
+                      setBankUploaded(false);
+                    }
+                  }}
+                />
+
+                {!bankFile && !bankUploaded ? (
+                  <div
+                    onClick={() => bankInputRef.current?.click()}
+                    className="py-3 px-2 rounded-lg border border-dashed border-slate-300 hover:border-slate-400 bg-white text-center cursor-pointer transition-colors"
+                  >
+                    <UploadCloud className="w-4 h-4 text-slate-400 mx-auto mb-1" />
+                    <span className="text-xs text-slate-600 font-medium block">Choose .CSV file</span>
+                  </div>
+                ) : (
+                  <div className="p-2 bg-white border border-slate-200 rounded-lg flex items-center justify-between">
+                    <div className="truncate pr-1">
+                      <span className="text-xs font-bold text-slate-800 truncate block">
+                        {bankFile ? bankFile.name : "Bank_Transactions.csv"}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {bankFile ? formatSize(bankFile.size) : "Default Sample"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setBankFile(null);
+                        setBankUploaded(false);
+                      }}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {bankUploaded && (
+                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 mt-2">
+                  <Check className="w-3 h-3" /> {bankStats ? `${bankStats} transactions mapped` : "Saved"}
+                </span>
+              )}
             </div>
-            <div>
-              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                Evidence Ingestion Hub
-              </h2>
-              <p className="text-[10px] text-slate-500">Structured &amp; Unstructured Ingestion Pipeline</p>
+
+            {/* CARD 2: TELECOM CDR */}
+            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col justify-between min-h-[140px]">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                    <PhoneCall className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Telecom CDR Logs</span>
+                    <span className="text-[10px] text-slate-500">CSV Call Records</span>
+                  </div>
+                </div>
+
+                <input
+                  ref={cdrInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setCdrFile(e.target.files[0]);
+                      setCdrUploaded(false);
+                    }
+                  }}
+                />
+
+                {!cdrFile && !cdrUploaded ? (
+                  <div
+                    onClick={() => cdrInputRef.current?.click()}
+                    className="py-3 px-2 rounded-lg border border-dashed border-slate-300 hover:border-slate-400 bg-white text-center cursor-pointer transition-colors"
+                  >
+                    <UploadCloud className="w-4 h-4 text-slate-400 mx-auto mb-1" />
+                    <span className="text-xs text-slate-600 font-medium block">Choose .CSV file</span>
+                  </div>
+                ) : (
+                  <div className="p-2 bg-white border border-slate-200 rounded-lg flex items-center justify-between">
+                    <div className="truncate pr-1">
+                      <span className="text-xs font-bold text-slate-800 truncate block">
+                        {cdrFile ? cdrFile.name : "CDR_Logs.csv"}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {cdrFile ? formatSize(cdrFile.size) : "Default Sample"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCdrFile(null);
+                        setCdrUploaded(false);
+                      }}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {cdrUploaded && (
+                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 mt-2">
+                  <Check className="w-3 h-3" /> {cdrStats ? `${cdrStats} calls mapped` : "Saved"}
+                </span>
+              )}
+            </div>
+
+            {/* CARD 3: FIR DOSSIER */}
+            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col justify-between min-h-[140px]">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
+                    <FileText className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">FIR Police Dossier</span>
+                    <span className="text-[10px] text-slate-500">PDF or TXT Narrative</span>
+                  </div>
+                </div>
+
+                <input
+                  ref={firInputRef}
+                  type="file"
+                  accept=".txt,.pdf,.png,.jpg"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setFirFile(e.target.files[0]);
+                      setFirUploaded(false);
+                    }
+                  }}
+                />
+
+                {!firFile && !firUploaded ? (
+                  <div
+                    onClick={() => firInputRef.current?.click()}
+                    className="py-3 px-2 rounded-lg border border-dashed border-slate-300 hover:border-slate-400 bg-white text-center cursor-pointer transition-colors"
+                  >
+                    <UploadCloud className="w-4 h-4 text-slate-400 mx-auto mb-1" />
+                    <span className="text-xs text-slate-600 font-medium block">Choose PDF / TXT</span>
+                  </div>
+                ) : (
+                  <div className="p-2 bg-white border border-slate-200 rounded-lg flex items-center justify-between">
+                    <div className="truncate pr-1">
+                      <span className="text-xs font-bold text-slate-800 truncate block">
+                        {firFile ? firFile.name : "FIR_Case_992.txt"}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {firFile ? formatSize(firFile.size) : "Default Sample"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setFirFile(null);
+                        setFirUploaded(false);
+                      }}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {firUploaded && (
+                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 mt-2">
+                  <Check className="w-3 h-3" /> {firStats ? `${firStats} suspects identified` : "Saved"}
+                </span>
+              )}
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
-            CCTNS // NATGRID
-          </span>
+
+          {/* Single Clear Primary Action */}
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-slate-500">
+              {stagedCount > 0 ? `${stagedCount} file(s) staged for intake` : "Select files above to stage"}
+            </span>
+
+            <button
+              onClick={handleIngestAll}
+              disabled={isAnyLoading || stagedCount === 0}
+              className="flex items-center gap-2 py-2 px-5 rounded-lg bg-[#0A2540] hover:bg-[#143d6a] active:scale-95 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {masterLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                  <span>Processing Intake...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Ingest Staged Evidence</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Master 1-Click Action Bar */}
-      <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-200/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-        <div>
-          <span className="text-xs font-bold text-blue-950 block">
-            {stagedCount > 0 ? `${stagedCount} Evidence File(s) Staged` : "Ready for Evidence Intake"}
-          </span>
-          <p className="text-[11px] text-blue-800">
-            Ingests transactions, call records, and extracts FIR intelligence directly into Neo4j.
-          </p>
-        </div>
+      {/* ========================================================================= */}
+      {/* 3. TAB 2: CLEAN TEXT PASTE */}
+      {/* ========================================================================= */}
+      {activeTab === "text" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-slate-700">FIR Statement / Police Diary</span>
+            <button
+              type="button"
+              onClick={() => setFirText(sampleNarrative)}
+              className="text-blue-700 hover:underline font-medium cursor-pointer"
+            >
+              Insert Sample FIR
+            </button>
+          </div>
 
+          <textarea
+            rows={6}
+            value={firText}
+            onChange={(e) => setFirText(e.target.value)}
+            placeholder="Paste FIR narrative, witness statement, or suspect notes..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-800 font-mono leading-relaxed focus:outline-hidden focus:border-blue-600 focus:bg-white"
+          />
+
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-400 font-mono">{firText.length} characters</span>
+            <button
+              onClick={handleProcessDirectText}
+              disabled={isAnyLoading || !firText.trim()}
+              className="flex items-center gap-1.5 py-2 px-4 rounded-lg bg-[#0A2540] hover:bg-[#143d6a] text-white text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+            >
+              {firTextLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                  <span>Extracting...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Extract &amp; Map Entities</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. TAB 3: CLEAN 1-CLICK DEMO */}
+      {/* ========================================================================= */}
+      {activeTab === "demo" && (
+        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/70 space-y-3">
+          <div>
+            <span className="text-xs font-bold text-slate-900 block">Demonstration Dataset</span>
+            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              Instantly loads synthetic Banking ledgers (25+ transactions), Telecom CDR logs (40+ calls), and FIR-992 case dossier into the Neo4j graph for analysis.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+            <span className="text-xs text-slate-500 font-mono">
+              Target: <strong className="text-slate-800">{targetCaseId}</strong>
+            </span>
+
+            <button
+              onClick={handleLoadDemoData}
+              disabled={isAnyLoading}
+              className="flex items-center gap-1.5 py-2 px-4 rounded-lg bg-[#0A2540] hover:bg-[#143d6a] text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {demoLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                  <span>Loading Dataset...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 text-orange-400 fill-current" />
+                  <span>Load Demo Network</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Active Pipeline Spinner Banner */}
+      {currentStep && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex items-center gap-2 text-xs text-blue-900">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-700 shrink-0" />
+          <span className="font-medium truncate">{currentStep}</span>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. COLLAPSIBLE ACTIVITY LOG (Clean & Uncluttered) */}
+      {/* ========================================================================= */}
+      <div className="pt-2 border-t border-slate-100">
         <button
-          onClick={handleIngestAll}
-          disabled={masterLoading || bankLoading || cdrLoading || firLoading}
-          className="flex items-center gap-2 py-2 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => setShowLogs(!showLogs)}
+          className="flex items-center justify-between w-full text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
         >
-          {masterLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
-              <span>Ingesting Evidence...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>{stagedCount > 0 ? `Ingest ${stagedCount} Staged File(s)` : "Upload & Ingest Evidence"}</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* 3 Evidence Cards */}
-      <div className="space-y-3">
-        {/* ========================================================================= */}
-        {/* CARD 1: Financial Ledger (Bank Transactions CSV) */}
-        {/* ========================================================================= */}
-        <div
-          className={`rounded-xl border transition-all p-3.5 ${
-            bankUploaded
-              ? "border-emerald-300 bg-emerald-50/40"
-              : bankFile
-              ? "border-blue-300 bg-blue-50/30"
-              : "border-slate-200 bg-white hover:border-slate-300 shadow-2xs"
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
-                <CreditCard className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">
-                  1. Financial Ledger (CSV / XLSX)
-                </span>
-                <span className="text-[10px] text-slate-500">Bank transactions, mule accounts &amp; transfer amounts</span>
-              </div>
-            </div>
-
-            {bankFile ? (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                {formatFileSize(bankFile.size)}
-              </span>
-            ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                No file staged
-              </span>
-            )}
-          </div>
-
-          <input
-            ref={bankInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files?.[0]) {
-                setBankFile(e.target.files[0]);
-                setBankUploaded(false);
-              }
-            }}
-          />
-
-          {!bankFile && !bankUploaded ? (
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setBankDragging(true);
-              }}
-              onDragLeave={() => setBankDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setBankDragging(false);
-                if (e.dataTransfer.files?.[0]) {
-                  setBankFile(e.dataTransfer.files[0]);
-                  setBankUploaded(false);
-                }
-              }}
-              onClick={() => bankInputRef.current?.click()}
-              className={`p-3 rounded-lg border-2 border-dashed text-center cursor-pointer transition-colors ${
-                bankDragging
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-slate-200 hover:border-blue-400 bg-slate-50/60 hover:bg-blue-50/30"
-              }`}
-            >
-              <FileUp className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-700 font-semibold">
-                Drop bank CSV here, or <span className="text-blue-600 underline font-bold">browse</span>
-              </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Supports standard CCTNS &amp; Core Banking CSV schemas</p>
-            </div>
-          ) : (
-            <div className="space-y-2 mt-1">
-              <div className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                <div className="flex items-center gap-2 truncate">
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="text-slate-900 font-bold truncate max-w-[280px]" title={bankFile?.name || "Bank_Transactions.csv"}>
-                    {bankFile ? bankFile.name : "Bank_Transactions.csv (Default Sample)"}
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    setBankFile(null);
-                    setBankUploaded(false);
-                    if (bankInputRef.current) bankInputRef.current.value = "";
-                  }}
-                  className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 cursor-pointer transition-colors"
-                  title="Remove / Choose Different File"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {bankUploaded ? (
-                  <div className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold">
-                    <span className="flex items-center gap-1.5">
-                      <Check className="w-4 h-4 text-emerald-700" />
-                      Committed into Neo4j Graph
-                    </span>
-                    <button
-                      onClick={() => {
-                        setBankUploaded(false);
-                        bankInputRef.current?.click();
-                      }}
-                      className="text-emerald-700 hover:underline cursor-pointer text-[11px]"
-                    >
-                      Re-upload
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleProcessBank}
-                    disabled={bankLoading}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {bankLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                        <span>Ingesting Ledger...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Process Financial Ledger</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ========================================================================= */}
-        {/* CARD 2: Telecom CDR Records (CDR_Logs.csv) */}
-        {/* ========================================================================= */}
-        <div
-          className={`rounded-xl border transition-all p-3.5 ${
-            cdrUploaded
-              ? "border-emerald-300 bg-emerald-50/40"
-              : cdrFile
-              ? "border-blue-300 bg-blue-50/30"
-              : "border-slate-200 bg-white hover:border-slate-300 shadow-2xs"
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
-                <PhoneCall className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">
-                  2. Telecom CDR Records (CSV)
-                </span>
-                <span className="text-[10px] text-slate-500">Call detail records, call durations &amp; cell tower locations</span>
-              </div>
-            </div>
-
-            {cdrFile ? (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                {formatFileSize(cdrFile.size)}
-              </span>
-            ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                No file staged
-              </span>
-            )}
-          </div>
-
-          <input
-            ref={cdrInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files?.[0]) {
-                setCdrFile(e.target.files[0]);
-                setCdrUploaded(false);
-              }
-            }}
-          />
-
-          {!cdrFile && !cdrUploaded ? (
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setCdrDragging(true);
-              }}
-              onDragLeave={() => setCdrDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setCdrDragging(false);
-                if (e.dataTransfer.files?.[0]) {
-                  setCdrFile(e.dataTransfer.files[0]);
-                  setCdrUploaded(false);
-                }
-              }}
-              onClick={() => cdrInputRef.current?.click()}
-              className={`p-3 rounded-lg border-2 border-dashed text-center cursor-pointer transition-colors ${
-                cdrDragging
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-slate-200 hover:border-blue-400 bg-slate-50/60 hover:bg-blue-50/30"
-              }`}
-            >
-              <FileUp className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-700 font-semibold">
-                Drop telecom CDR logs here, or <span className="text-blue-600 underline font-bold">browse</span>
-              </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Caller/receiver MSISDNs, durations &amp; BTS cell IDs</p>
-            </div>
-          ) : (
-            <div className="space-y-2 mt-1">
-              <div className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                <div className="flex items-center gap-2 truncate">
-                  <PhoneCall className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span className="text-slate-900 font-bold truncate max-w-[280px]" title={cdrFile?.name || "CDR_Logs.csv"}>
-                    {cdrFile ? cdrFile.name : "CDR Logs CSV"}
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    setCdrFile(null);
-                    setCdrUploaded(false);
-                    if (cdrInputRef.current) cdrInputRef.current.value = "";
-                  }}
-                  className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 cursor-pointer transition-colors"
-                  title="Remove / Choose Different File"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {cdrUploaded ? (
-                  <div className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold">
-                    <span className="flex items-center gap-1.5">
-                      <Check className="w-4 h-4 text-emerald-700" />
-                      Committed into Neo4j Graph
-                    </span>
-                    <button
-                      onClick={() => {
-                        setCdrUploaded(false);
-                        cdrInputRef.current?.click();
-                      }}
-                      className="text-emerald-700 hover:underline cursor-pointer text-[11px]"
-                    >
-                      Re-upload
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleProcessCdr}
-                    disabled={cdrLoading}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {cdrLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                        <span>Ingesting CDR Records...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Process Telecom CDR</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ========================================================================= */}
-        {/* CARD 3: Case Files / FIR (TXT or PDF) */}
-        {/* ========================================================================= */}
-        <div
-          className={`rounded-xl border transition-all p-3.5 ${
-            firUploaded
-              ? "border-emerald-300 bg-emerald-50/40"
-              : firFile
-              ? "border-blue-300 bg-blue-50/30"
-              : "border-slate-200 bg-white hover:border-slate-300 shadow-2xs"
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-                <FileText className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-slate-900 block">
-                  3. Case Docket / FIR (PDF / TXT / Scanned Image)
-                </span>
-                <span className="text-[10px] text-slate-500">Unstructured narrative for NLP entity &amp; suspect extraction</span>
-              </div>
-            </div>
-
-            {firFile ? (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                {formatFileSize(firFile.size)}
-              </span>
-            ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                No file staged
-              </span>
-            )}
-          </div>
-
-          <input
-            ref={firInputRef}
-            type="file"
-            accept=".txt,.pdf"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files?.[0]) {
-                setFirFile(e.target.files[0]);
-                setFirUploaded(false);
-              }
-            }}
-          />
-
-          {!firFile && !firUploaded ? (
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setFirDragging(true);
-              }}
-              onDragLeave={() => setFirDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setFirDragging(false);
-                if (e.dataTransfer.files?.[0]) {
-                  setFirFile(e.dataTransfer.files[0]);
-                  setFirUploaded(false);
-                }
-              }}
-              onClick={() => firInputRef.current?.click()}
-              className={`p-3 rounded-lg border-2 border-dashed text-center cursor-pointer transition-colors ${
-                firDragging
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-slate-200 hover:border-blue-400 bg-slate-50/60 hover:bg-blue-50/30"
-              }`}
-            >
-              <FileUp className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-700 font-semibold">
-                Drop FIR text file here, or <span className="text-blue-600 underline font-bold">browse</span>
-              </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Extracts suspects, aliases, phone links &amp; syndicate roles</p>
-            </div>
-          ) : (
-            <div className="space-y-2 mt-1">
-              <div className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                <div className="flex items-center gap-2 truncate">
-                  <FileText className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span className="text-slate-900 font-bold truncate max-w-[280px]" title={firFile?.name || "FIR Docket"}>
-                    {firFile ? firFile.name : "FIR Docket Document"}
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    setFirFile(null);
-                    setFirUploaded(false);
-                    if (firInputRef.current) firInputRef.current.value = "";
-                  }}
-                  className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 cursor-pointer transition-colors"
-                  title="Remove / Choose Different File"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {firUploaded ? (
-                  <div className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold">
-                    <span className="flex items-center gap-1.5">
-                      <Check className="w-4 h-4 text-emerald-700" />
-                      Committed into Neo4j Graph
-                    </span>
-                    <button
-                      onClick={() => {
-                        setFirUploaded(false);
-                        firInputRef.current?.click();
-                      }}
-                      className="text-emerald-700 hover:underline cursor-pointer text-[11px]"
-                    >
-                      Re-upload
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleProcessFir}
-                    disabled={firLoading}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {firLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                        <span>Extracting Intelligence...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Extract FIR Intelligence</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Real-time Ingestion Audit Log */}
-      <div className="pt-2 border-t border-slate-200">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1.5">
-          <span className="flex items-center gap-1.5 text-slate-800">
-            <Activity className="w-3.5 h-3.5 text-blue-600" />
-            Ingestion Activity Log
+          <span className="flex items-center gap-1.5">
+            <Activity className="w-3 h-3 text-slate-400" />
+            Activity Log ({logs.length})
           </span>
-          <span className="text-[10px] font-mono text-slate-400 font-normal">{logs.length} logged events</span>
-        </div>
+          {showLogs ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
 
-        <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 font-mono text-[10px]">
-          {mounted &&
-            logs.map((log) => {
-              const isSuccess = log.status === "success";
-              const isError = log.status === "error";
-
-              return (
-                <div
-                  key={log.id}
-                  className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-start gap-2 text-slate-800 shadow-2xs"
-                >
-                  <div className="mt-0.5 shrink-0">
-                    {isSuccess ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    ) : isError ? (
-                      <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                    ) : (
-                      <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 font-sans">
-                    <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono">
-                      <span className="font-bold text-slate-900 uppercase">[{log.type}]</span>
-                      <span suppressHydrationWarning>{log.timestamp}</span>
-                    </div>
-                    <p className="text-slate-800 truncate mt-0.5 font-medium">{log.message}</p>
-                  </div>
-                </div>
-              );
-            })}
-        </div>
+        {showLogs && (
+          <div className="max-h-24 overflow-y-auto space-y-1 mt-2 text-[10px] font-mono pr-1">
+            {logs.map((log) => (
+              <div key={log.id} className="flex items-center justify-between py-1 px-2 rounded bg-slate-50 text-slate-600">
+                <span className="truncate flex-1">{log.message}</span>
+                <span className="text-slate-400 ml-2 shrink-0">{log.timestamp}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

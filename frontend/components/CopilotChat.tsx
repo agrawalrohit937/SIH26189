@@ -179,48 +179,48 @@ export const CopilotChat: React.FC = () => {
               : "h-[540px] w-[95vw] sm:w-[480px] max-w-[500px]"
           }`}
         >
-          {/* Modern Institutional Window Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#07172C] via-[#0A2540] to-[#0D2E54] text-white border-b border-[#142944] shadow-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 border border-white/20 flex items-center justify-center text-white shadow-sm shrink-0">
-                <Bot className="w-4 h-4 text-amber-300" />
+          {/* Clean Light Window Header */}
+          <div className="flex items-center justify-between px-4 py-3.5 bg-white text-slate-900 border-b border-slate-100 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-900 shadow-xs shrink-0">
+                <Bot className="w-4 h-4 text-blue-800" />
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-black uppercase tracking-wide text-white">
-                    AI Investigator Co-Pilot
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-slate-900 tracking-tight">
+                    AI Investigator Copilot
                   </h3>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
-                <p className="text-[10px] text-blue-200/80 font-medium">National Crime Intelligence Assistant (MHA)</p>
+                <p className="text-[10px] text-slate-500 font-medium">National Crime Intelligence Assistant (MHA)</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-blue-200">
+            <div className="flex items-center gap-1 text-slate-400">
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 title={isExpanded ? "Standard Width" : "Expand Table View"}
               >
-                {isExpanded ? <Shrink className="w-3.5 h-3.5 text-amber-300" /> : <Expand className="w-3.5 h-3.5" />}
+                {isExpanded ? <Shrink className="w-3.5 h-3.5 text-blue-700" /> : <Expand className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={handleClearHistory}
-                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 title="Clear Chat History"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 title={isMinimized ? "Expand" : "Minimize"}
               >
                 {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 hover:text-rose-300 hover:bg-rose-900/40 rounded-lg transition-colors cursor-pointer font-bold ml-0.5"
+                className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer ml-0.5"
                 title="Close"
               >
                 <X className="w-4 h-4" />

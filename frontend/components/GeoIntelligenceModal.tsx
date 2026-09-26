@@ -84,22 +84,22 @@ export const GeoIntelligenceModal: React.FC<GeoIntelligenceModalProps> = ({
     : locations.filter((l: any) => l.city === selectedHub);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="p-4 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Clean Light Header */}
+        <div className="p-5 px-6 border-b border-slate-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-300">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-800 shrink-0">
               <Globe2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold tracking-wide">National Geospatial & Telecom Tower Intelligence</h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-400/20 border border-teal-400/40 text-teal-200">
-                  GIS Layer
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">Geospatial & Telecom Tower Intelligence</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-800">
+                  NATGRID // GIS LAYER
                 </span>
               </div>
-              <p className="text-xs text-slate-300">Regional jurisdiction cluster hubs & BTS cell tower triangulations</p>
+              <p className="text-xs text-slate-500 mt-0.5">Regional jurisdiction cluster hubs & BTS cell tower triangulations</p>
             </div>
           </div>
 
@@ -107,14 +107,15 @@ export const GeoIntelligenceModal: React.FC<GeoIntelligenceModalProps> = ({
             <button
               onClick={fetchGeoData}
               disabled={loading}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer disabled:opacity-50"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer disabled:opacity-50"
               title="Refresh Geo Map"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+              title="Close"
             >
               <X className="w-4 h-4" />
             </button>
@@ -122,13 +123,13 @@ export const GeoIntelligenceModal: React.FC<GeoIntelligenceModalProps> = ({
         </div>
 
         {/* Hub Filter Bar */}
-        <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
-          <span className="text-[11px] font-bold text-slate-500 uppercase shrink-0">Jurisdiction Filter:</span>
+        <div className="p-4 px-6 bg-slate-50/80 border-b border-slate-100 flex items-center gap-2 overflow-x-auto">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide shrink-0">Jurisdiction Filter:</span>
           <button
             onClick={() => setSelectedHub("All")}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               selectedHub === "All"
-                ? "bg-teal-700 text-white shadow-2xs"
+                ? "bg-slate-900 text-white shadow-xs"
                 : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
             }`}
           >
@@ -138,13 +139,13 @@ export const GeoIntelligenceModal: React.FC<GeoIntelligenceModalProps> = ({
             <button
               key={hub}
               onClick={() => setSelectedHub(hub)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 selectedHub === hub
-                  ? "bg-teal-700 text-white shadow-2xs"
+                  ? "bg-slate-900 text-white shadow-xs"
                   : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
               }`}
             >
-              <MapPin className="w-3 h-3 text-teal-600" />
+              <MapPin className="w-3.5 h-3.5 text-teal-600" />
               {hub}
             </button>
           ))}
